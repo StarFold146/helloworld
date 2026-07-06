@@ -85,6 +85,17 @@ html,body{
   letter-spacing:0.1em;
 }
 #toast.show{opacity:0.85}
+#snd{
+  position:fixed;top:calc(var(--safe-top) + 10px);left:12px;z-index:96;
+  width:34px;height:34px;background:none;border:none;
+  color:var(--text-dim);font-size:17px;cursor:pointer;opacity:0.55;
+}
+#img-flash{
+  position:fixed;inset:0;z-index:9000;
+  background:#000 center/contain no-repeat;
+  opacity:0;pointer-events:none;transition:opacity 0.3s ease;
+}
+#img-flash.on{opacity:1;transition:none}
 #warm-glow{
   position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity 3s ease;
   background:radial-gradient(ellipse at 50% 100%, rgba(208,138,62,0.30), transparent 60%);
@@ -119,6 +130,9 @@ html,body{
 <div id="curtain"></div>
 <div id="warm-glow"></div>
 <div id="bg-illust"></div>
+<div id="img-flash"></div>
+<audio id="bgm" src="bgm.mp3" loop preload="none"></audio>
+<button id="snd" aria-label="sound">♪</button>
 <div id="lamp-hud"></div>
 <div id="toast"></div>
 <div id="chalk-marks"></div>
@@ -151,11 +165,11 @@ const SVG_CORRIDOR = `<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/s
 
 const SVG_LOCKERS = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
 <line x1="20" y1="170" x2="380" y2="170"/>
-<rect x="40" y="60" width="60" height="110"/><rect x="108" y="60" width="60" height="110"/><rect x="176" y="60" width="60" height="110"/><rect x="244" y="60" width="60" height="110"/><rect x="312" y="60" width="60" height="110"/>
-<rect x="52" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="120" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="188" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="256" y="74" width="36" height="14" stroke="#6a6f66"/>
-<path d="M324 74 L336 74 L330 84 Z" stroke="#5a5044"/>
-<rect x="322" y="118" width="40" height="20" stroke="#39443b"/>
-<path d="M326 128 h6 M336 124 v8 M346 128 h8" stroke="#5a5044" stroke-width="0.9"/>
+<rect x="56" y="60" width="66" height="110"/><rect x="132" y="60" width="66" height="110"/><rect x="208" y="60" width="66" height="110"/><rect x="284" y="60" width="66" height="110"/>
+<rect x="70" y="74" width="38" height="14" stroke="#6a6f66"/><rect x="146" y="74" width="38" height="14" stroke="#6a6f66"/><rect x="222" y="74" width="38" height="14" stroke="#6a6f66"/>
+<rect x="296" y="118" width="42" height="20" stroke="#39443b"/>
+<path d="M300 128 h7 M311 123 v10 M322 128 h9" stroke="#5a5044" stroke-width="0.9"/>
+<path d="M300 132 h34" stroke="#d08a3e" stroke-width="0.7" opacity="0.35" stroke-dasharray="5 3"/>
 </svg>`;
 
 const SVG_MAP = `<svg viewBox="0 0 400 230" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.1">
@@ -266,17 +280,25 @@ function parseEntry(){
   return { deriv:null, diluted:false, family:'Passage', fromW1:false };
 }
 
-// ==== 判词与配歌（锁定·待主创终审填入。为 null 时结果页显示占位）====
-// 判词主文按「你给出的那样东西」分四条；附加缀语两条。
+// ==== 判词与配歌（Gemini 初稿 · Fable 5 审校定稿 · 主创终审制）====
 const VERDICTS = {
-  draw:  null,   // 给出：一张亲手画的画
-  candy: null,   // 给出：咸味苏打糖
-  torch: null,   // 给出：亮着的手电筒
-  badge: null,   // 给出：编号布片「03」
-  handsFree: null, // 附加缀语：徒手（Passage 无衍生）通关
-  dimmed:    null, // 附加缀语：灯灭过（resets ≥ 1）
+  draw:  '你用那半盒白粉笔画了一张画，从门缝递了进去。画了什么，档案没有登记——那是只属于你们两个人的内容。档案只记下一行：有人把一件亲手造出来的东西留在了无名的房间里，而它被小心地收下了。这份光亮带着你的笔迹，会被长久地记得。',
+  candy: '你把那颗咸味苏打糖递了进去。这不是随手的选择——你记得这个院子里的孩子都不吃甜的。档案评注：这颗糖很小，却像一束校准过的光，正好落在一个从来没有人问过口味的孩子身上。被理解，也是被记得的一种。',
+  torch: '你把旧手电筒拧亮，连同那圈暖黄色的光一起递了进去。从此那个房间里的光，不再只靠一支蜡烛独自支撑。档案记录：你选择了最直接的办法——给暗处的名字一盏不会先离开的灯。它亮着的每一秒，都在替你重复那句话：我看见你了。',
+  badge: '你撕下了胸口的编号布片「03」，把这个世界里唯一属于你的凭证给了出去。规则为此愣了一下：一个自愿放下编号的人，和一个从未拥有编号的孩子，在同一扇门里交换了位置。档案的批注只有一行：从今以后你们互相记得，谁也不再是无名的。',
+  handsFree: '另注：你没有携带任何异能，仅凭一双空手走完了全程。档案在「徒手」两个字旁边画了一颗星——在这栋楼的记载里，这是含金量最高的记号。',
+  dimmed: '另注：走廊的灯灭过，你从头来过。但孩子们没有散，他们在原地等你，像等一句迟到但一定会来的应答。灯可以灭很多次，等你这件事，一次也没有中断过。',
+  normal: '名单上的三个名字都找齐了，任务栏写着完成。只是那扇没有名字的门，你终究没有推。门缝里的橘色光安安静静地亮了一整夜，直到天亮，也没有等到那一下门轴的响动。档案没有批评你——它只是把这一夜的光，原样记了下来。',
+  early: '你在天亮之前停下了寻找。档案里没有责备的条目：已经遇见你的孩子，会记得你带来的那一段光；还没有遇见的孩子，会继续等下一个推门的人。这栋楼最不缺的就是等待，最缺的是开始过的人——而你，至少开始过。',
 };
-const SONGS = { Gaze:null, Voice:null, Rewind:null, Fortune:null, Passage:null };
+const SONGS = {
+  Gaze:'《missing》— SEKAI NO OWARI',
+  Voice:'《みちしるべ（路标）》— 茅原実里',
+  Rewind:'《梵谷的左耳》— 阿沁',
+  Fortune:'《人间》— 王菲',
+  Passage:'《我们总会找到这里》— DOUDOU',
+};
+const SONG_PERSE = '《也许没有未来神》— per se';
 
 // ==== 状态 ====
 const S = {
@@ -350,7 +372,27 @@ const Type = {
   },
   skip(){this.skipFlag=true},
 };
-document.addEventListener('pointerdown',()=>Type.skip());
+const Sound = {
+  started:false, enabled:true,
+  tryStart(){
+    if(this.started||!this.enabled)return;
+    const a=$('#bgm');a.volume=0.35;
+    const p=a.play();
+    if(p&&p.then)p.then(()=>{this.started=true;$('#snd').textContent='♫'}).catch(()=>{});
+  },
+  toggle(){
+    const a=$('#bgm');
+    if(a.paused){this.enabled=true;a.volume=0.35;const p=a.play();if(p&&p.catch)p.catch(()=>{});this.started=true;$('#snd').textContent='♫';}
+    else{a.pause();this.enabled=false;$('#snd').textContent='♪';}
+  }
+};
+document.addEventListener('pointerdown',e=>{
+  Type.skip();
+  if(!(e.target&&e.target.closest&&e.target.closest('#snd')))Sound.tryStart();
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  $('#snd').addEventListener('click',()=>Sound.toggle());
+});
 
 // ==== 剧情节点 ====
 function derivIs(k){return S.deriv===k}
@@ -376,7 +418,7 @@ W2_000:{
     t+='\n\n你站在一条走廊的正中央。脚下是开裂的黑白棋盘格地砖，空气里飘着一股很淡的消毒水味。两侧的墙刷着机构特有的浅绿色，到一米二的高度换成发黄的白。墙上每隔三米挂着一幅蜡笔画，画的是太阳、房子和手拉手的小人，画框全是铁的，钉死在墙里，取不下来。';
     t+='\n\n你低头看了看自己：白色长袖，灰色长裤，左胸口印着一个编号——03。';
     t+='\n\n右手腕上多了一圈很细的银环，贴着皮肤，带着一点微凉的温度。环面浮出小字——';
-    t+='\n「副本目标：熄灯前，找到所有孩子。」\n「走廊的灯：还剩六格。」';
+    t+='\n「副本目标：熄灯前，找到三名孩子。」\n「走廊的灯：还剩六格。」';
     return t;
   },
   choices:[{t:'看下一行字',n:'W2_010'}]
@@ -429,7 +471,7 @@ W2_030:{
     setTimeout(()=>UI.chalk('式子底下有一行小字：「对称的东西不会丢。」'),5200);
   },
   text(){
-    let t='活动室里散落着积木、蜡笔和缺了角的拼图。靠墙立着一排矮柜，柜门上贴着手写的名字标签——\n\n「小鱼」「年年」「灯灯」「阿默」\n\n第五张标签被人撕掉了，只剩一个角还粘在木头上。你拉开第五个柜子，里面只有一盒蜡笔：数了数，十一根，唯独少了橘色的那一根。\n\n墙角还立着一块小黑板，上面留着两行用粉笔写下的式子，字迹工整，像是被人特意留着没有擦。';
+    let t='活动室里散落着积木、蜡笔和缺了角的拼图。靠墙立着四个矮柜，其中三扇柜门贴着手写的名字标签——\n\n「年年」「灯灯」「阿默」\n\n第四个柜子的门上什么都没有。不是标签被撕掉了，而是从来没有贴过——连一点胶水的印子都找不到。你拉开它，里面只有一盒蜡笔：数了数，十一根，唯独少了橘色的那一根。\n\n墙角还立着一块小黑板，上面留着两行用粉笔写下的式子，字迹工整，像是被人特意留着没有擦。';
     t+=zuojiaoLine('名字是画上去的第一笔。');
     return t;
   },
@@ -446,7 +488,7 @@ W2_050:{
     if(S.lamp<=0 && !allFound()) return '';
     if(!S.hubVisited){
       S.hubVisited=true;
-      return '这是一张手绘的平面图，笔触像小孩画的，比例却出奇地准。\n\n红色：厨房。旁边画了一个笑脸，笑脸下面写着"年年在这里"。\n绿色：后花园。画了很多圈圈，像花，又像眼睛。\n黄色：院长办公室。旁边画了一把锁。\n蓝色：地下室。没有写字，但蓝色蜡笔在那一块反复涂了很多层，纸都起了毛。\n\n第五个位置用黑色蜡笔画了一个方块，方块里只有一条竖线——那是一扇关着的门，没有名字。\n\n「副本目标更新：找到所有孩子。」';
+      return '这是一张手绘的平面图，笔触像小孩画的，比例却出奇地准。\n\n红色：厨房。旁边画了一个笑脸，笑脸下面写着"年年在这里"。\n绿色：后花园。画了很多圈圈，像花，又像眼睛。\n黄色：院长办公室。旁边画了一把锁。\n蓝色：地下室。没有写字，但蓝色蜡笔在那一块反复涂了很多层，纸都起了毛。\n\n第五个位置用黑色蜡笔画了一个方块，方块里只有一条竖线——那是一扇关着的门，没有名字。\n\n「副本目标：找到三名孩子。当前进度：0/3。」';
     }
     let t='地图摊在你手里。';
     const who=[];
@@ -471,6 +513,7 @@ W2_050:{
     if(!S.flags.office)c.push({t:'黄色——院长办公室',n:'W2_300'});
     if(!S.found.amo)c.push({t:'蓝色——地下室',n:'W2_400'});
     c.push({t:'黑色——没有名字的门',n: foundCount()>=3 ? 'W2_500' : 'W2_505'});
+    if(foundCount()===3&&!S.found.xiaoyu)c.push({t:'把三个名字交回去——完成任务（结算）',n:'W2_920'});
     if(!S.flags.clinic)c.push({t:'走廊中段，一扇虚掩的门（保健室）',n:'W2_350'});
     return c;
   }
@@ -479,7 +522,10 @@ W2_050:{
 W2_505:{
   svg:SVG_BLACKDOOR,
   text:'你走到那扇门前。门把手上落着一层灰，很久没有人从外面碰过它了。门缝里透出一线橘色的光。\n\n你推了推，门没有动。里面很安静——那不是拒绝的安静，是没想到会有人来的安静。\n\n「还有人等你。」',
-  choices:[{t:'回到地图前',n:'W2_050'}]
+  choices:[
+    {t:'回到地图前',n:'W2_050'},
+    {t:'算了。带着现在找到的人，回走廊坐到天亮',n:'W2_910'},
+  ]
 },
 
 // ===== 厨房（年年）=====
@@ -556,7 +602,7 @@ W2_140:{
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
   },
   text(){
-    let t='他盯着你看了大概五秒，打火机的火跳了两下。\n\n然后，他自己从烤箱里爬了出来。没有人叫他，是他自己决定的。他把打火机揣进口袋，揣得很郑重，像收起一件舍不得弄丢的宝贝。\n\n"我跟你们走。"\n\n他拉住你的袖子，忽然又想起什么似的仰起头：\n\n"你要去找灯灯吗。她在花园，但你去了也看不见她——要先把她的花摆对。绿色挨着绿色，红色不挨红色，最大那块在最上面。"\n\n他笑了一下，笑得很小：\n\n"她说那个是太阳。"\n\n「找到孩子：年年。」';
+    let t='他盯着你看了大概五秒，打火机的火跳了两下。\n\n然后，他自己从烤箱里爬了出来。没有人叫他，是他自己决定的。他把打火机揣进口袋，揣得很郑重，像收起一件舍不得弄丢的宝贝。\n\n"我跟你们走。"\n\n他拉住你的袖子，忽然又想起什么似的仰起头：\n\n"你要去找灯灯吗。她在花园，但你去了也看不见她——要先把她的花摆对。绿色挨着绿色，红色不挨红色，最大那块在最上面。"\n\n他笑了一下，笑得很小：\n\n"她说那个是太阳。"\n\n「找到孩子：年年。进度：1/3。」';
     if(S.items.milk){t+='\n\n你把保健室带出来的那杯热牛奶递给他。他捧着喝了一口，很小声地说："……和小鱼热的一个温度。"';S.items.milk=false;S.flags.milkGiven=true;}
     return t;
   },
@@ -602,7 +648,10 @@ W2_211:{
 
 W2_211B:{
   text:'你又试了一遍，这次摆到第七块就乱了套——没有规则的话，十二块石头有太多种排法。\n\n土里这一次连叹气都没有。它在等你带着答案回来。',
-  choices:[{t:'回到地图前',n:'W2_050'}]
+  choices:[
+    {t:'回到地图前',n:'W2_050'},
+    {t:'不想再猜了。把木牌扶正，退出花园，找个地方坐到天亮',n:'W2_910'},
+  ]
 },
 
 W2_213:{
@@ -637,7 +686,7 @@ W2_220:{
     let t='地面很轻地震了一下。圈中间新翻的土动了——不是塌陷，是有什么东西正在往上生长。\n\n一根细藤钻出来，顶端开了一朵白色的小花。花瓣上有字，像是长在纹路里的。第二朵、第三朵接着钻出来，一片白色的小花从土里冒出头，一朵驮着一个字——\n\n"你""来""啦""年""年""有""没""有""好""好""吃""饭"\n\n最后一朵开得最大，上面写着："别怕。"\n\n花丛中间的土轻轻拱起，一只小手从里面伸了出来，指甲缝里带着泥，手腕上系着一根绿色的毛线。';
     if(S.found.yannian) t+='\n\n年年一把抓住那只手，使劲往外拽。一个短头发的女孩从土里坐起来，靠在他肩上，睁开眼的第一句话是：\n\n"打火机还在？"\n"在。"\n"那就好。"';
     else t+='\n\n你抓住那只手，轻轻把她拽了出来。短头发的女孩坐起身，拍了拍身上的土，盯着你看了很久：\n\n"……你不是这里的人。但你把太阳摆对了。"';
-    t+='\n\n她的编号是04。她站起来，看了一眼地图上蓝色的方向，手指慢慢收紧了：\n\n"别去地下室。"\n\n她停了一下，补了三个字：\n\n"——最后去。"\n\n「找到孩子：灯灯。」';
+    t+='\n\n她的编号是04。她站起来，看了一眼地图上蓝色的方向，手指慢慢收紧了：\n\n"别去地下室。"\n\n她停了一下，补了三个字：\n\n"——最后去。"\n\n「找到孩子：灯灯。进度：2/3。」';
     return t;
   },
   choices:[{t:'回到地图前',n:'W2_050'}]
@@ -776,7 +825,7 @@ W2_420:{
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
   },
   bg:'P8.jpg',
-  text:'走廊的光从门缝里切进去，在地上铺出一个长长的亮块。\n\n男孩站在光的边缘，没有踏进来。编号05，头发有些长，手指上沾满了粉笔灰——门上那行字是他自己写的。\n\n灯灯走进光里，走到他面前，把手腕上的绿毛线解下来，系在了他的手腕上。\n\n他低着头看了很久很久。\n\n然后，他抬起脚，走进了光里。\n\n「找到孩子：阿默。」',
+  text:'走廊的光从门缝里切进去，在地上铺出一个长长的亮块。\n\n男孩站在光的边缘，没有踏进来。编号05，头发有些长，手指上沾满了粉笔灰——门上那行字是他自己写的。\n\n灯灯走进光里，走到他面前，把手腕上的绿毛线解下来，系在了他的手腕上。\n\n他低着头看了很久很久。\n\n然后，他抬起脚，走进了光里。\n\n「找到孩子：阿默。进度：3/3。」\n「任务完成。可随时交回名单。」',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 
@@ -784,7 +833,7 @@ W2_420:{
 W2_500:{
   svg:SVG_BLACKDOOR,
   text(){
-    let t='走廊的最深处。\n\n那扇门和地图上画的一模一样：没有颜色，没有名字，门把手上落着灰。门缝里透出一线橘色的光，很稳，像一支蜡烛安安静静地烧着。\n\n里面没有声音。不数数，也不唱歌。\n\n年年小声说："小鱼帮我热牛奶。小鱼什么都帮。但是小鱼没有自己的东西。"\n\n灯灯接着说："他的柜子从来没放过东西。蜡笔分给大家，粉笔给阿默，毛线给我。地图也是他画的——他把我们每个人都标上了，自己的位置，却只画了一扇关着的门。"\n\n阿默一直没有说话。这时他开了口，声音里还带着地下室的那种闷：\n\n"他说他不算。"\n\n「第四名儿童不在目标列表中。寻找他不会推进进度。」\n\n银环停了一拍，又跳出一行：\n\n「但副本目标是——找到"所有"孩子。」';
+    let t='走廊的最深处。\n\n那扇门和地图上画的一模一样：没有颜色，没有名字，门把手上落着灰。门缝里透出一线橘色的光，很稳，像一支蜡烛安安静静地烧着。\n\n里面没有声音。不数数，也不唱歌。\n\n年年小声说："小鱼帮我热牛奶。小鱼什么都帮。但是小鱼没有自己的东西。"\n\n灯灯接着说："他的柜子从来没放过东西。蜡笔分给大家，粉笔给阿默，毛线给我。地图也是他画的——他把我们每个人都标上了，自己的位置，却只画了一扇关着的门。"\n\n阿默一直没有说话。这时他开了口，声音里还带着地下室的那种闷：\n\n"他说他不算。"\n\n「任务列表：三名。已找到：三名。此处无待办事项。」\n\n银环停了一拍，又跳出一行，字比刚才的淡：\n\n「……但这栋楼里的孩子，数下来是四个。」';
     t+=zuojiaoLine('门是从里面画的。');
     return t;
   },
@@ -816,9 +865,10 @@ W2_510:{
 
 W2_520:{
   enter(){S.found.xiaoyu=true},
+  flash:'P4.jpg',
   bg:'P4.jpg',
   text(){
-    let t=`你把${S.given}从门缝递了进去。\n\n五份东西，在门的那一边聚齐了。\n\n门内传来很轻的、吸鼻子的声音。\n\n然后——门从里面打开了。\n\n男孩比年年高一点，怀里抱着你们递进去的五样东西，抱得很紧，像是捧着几块刚出炉的、烫手的宝贝。他的胸口没有编号，只有一块空白的布。\n\n他从口袋里掏出一根用得只剩两指长的橘色蜡笔，放进你的手心：\n\n"这个是我的。我想主动给你一个。"\n\n他吸了吸鼻子：\n\n"你是第一个推门缝的人。别的人都是敲。"\n\n「找到孩子：小鱼。」\n「进度：4/4——」\n\n银环停了一下，像是重新算了一遍。\n\n「更正：所有。」`;
+    let t=`你把${S.given}从门缝递了进去。\n\n五份东西，在门的那一边聚齐了。\n\n门内传来很轻的、吸鼻子的声音。\n\n然后——门从里面打开了。\n\n男孩比年年高一点，怀里抱着你们递进去的五样东西，抱得很紧，像是捧着几块刚出炉的、烫手的宝贝。他的胸口没有编号，只有一块空白的布。\n\n他从口袋里掏出一根用得只剩两指长的橘色蜡笔，放进你的手心：\n\n"这个是我的。我想主动给你一个。"\n\n他吸了吸鼻子：\n\n"你是第一个推门缝的人。别的人都是敲。"\n\n「找到孩子：小鱼。」\n「任务进度：3/3。已完成。检测到第四名：未登记。」\n\n银环停了一下，像是把整本名单重新算了一遍。\n\n「目标修订：所有孩子。——已达成。」`;
     return t;
   },
   choices:[{t:'牵他们回走廊',n:'W2_530'}]
@@ -841,7 +891,29 @@ W2_900:{
     S.lamp=6;S.resets++;UI.renderLamp();
   },
   text:'眼前黑了一瞬——真的只有一瞬。\n\n你重新站在走廊的正中央，抬头一看，灯又是满满的六格。\n\n孩子们没有散。找到过的孩子仍然站在你身边，牵着你的衣角，好像刚才只是所有人一起眨了一次眼。\n\n「他们没走。他们在等你。」',
-  choices:[{t:'摊开地图',n:'W2_050'}]
+  choices:[
+    {t:'摊开地图，继续找',n:'W2_050'},
+    {t:'不找了。就在走廊的长椅上，坐到天亮',n:'W2_910'},
+  ]
+},
+
+W2_910:{
+  text(){
+    const n=foundCount();
+    let t='你在走廊的长椅上坐了下来，决定不再找下去了。\n\n';
+    if(n>0)t+='找到的孩子没有说什么，只是挨着你坐下，把头靠在你的胳膊上。'+(S.found.yannian?'年年掏出打火机，替所有人举着那一小簇火。':'')+'\n\n';
+    t+='没有人来催你。这栋楼安静地陪你坐完了这一夜。\n\n天亮的时候，银环轻轻震了一下：\n\n「副本终止：提前结算。」\n「已找到：'+n+'/3。未找到的孩子将继续等待，等待不设期限。」';
+    return t;
+  },
+  choices:[{t:'看你的档案',n:'ENDING_EARLY'}]
+},
+
+W2_920:{
+  text(){
+    let t='你把写着三个名字的名单交了回去。银环接收得很顺利，没有多问一个字：\n\n「任务完成：3/3。感谢配合。」\n\n走廊尽头，那扇没有名字的门安安静静地立在原地，门缝里的橘色光还亮着。\n\n年年忽然回头看了一眼那个方向，张了张嘴，最后什么也没有说。灯灯牵住了他的手。\n\n你带着三个孩子，走向天亮。';
+    return t;
+  },
+  choices:[{t:'看你的档案',n:'ENDING_NORMAL'}]
 },
 
 };
@@ -859,11 +931,22 @@ const Director = {
 
   async enter(id){
     if(id==='W2_050' && S.lamp<=0 && !allFound()) id='W2_900';
-    if(id==='ENDING'){await UI.curtain();this.ending();return}
+    if(id==='ENDING'){await UI.curtain();this.ending('true');return}
+    if(id==='ENDING_NORMAL'){await UI.curtain();this.ending('normal');return}
+    if(id==='ENDING_EARLY'){await UI.curtain();this.ending('early');return}
     const node=NODES[id];
     if(!node){console.error('missing node',id);return}
     S.history.push(id);
     if(node.enter)node.enter();
+
+    if(node.flash){
+      const f=$('#img-flash');
+      f.style.backgroundImage=`url(${node.flash})`;
+      f.classList.add('on');
+      await sleep(1000);
+      f.classList.remove('on');
+      await sleep(300);
+    }
 
     const bgEl=$('#bg-illust');
     if(node.bg){
@@ -912,7 +995,7 @@ const Director = {
     requestAnimationFrame(()=>box.classList.add('visible'));
   },
 
-  ending(){
+  ending(kind){
     const area=$('#text-area');
     area.innerHTML='';
     $('#choices').innerHTML='';
@@ -922,22 +1005,36 @@ const Director = {
     h+='<h1>无名之家 · 档案</h1>';
 
     h+='<h2>终局判词</h2>';
-    const mainV = VERDICTS[S.givenType];
+    let mainV = kind==='true' ? VERDICTS[S.givenType] : (kind==='normal' ? VERDICTS.normal : VERDICTS.early);
     if(mainV){
       let v=mainV;
-      if(!S.deriv && VERDICTS.handsFree) v+='<br><br>'+VERDICTS.handsFree;
+      if(kind!=='early' && !S.deriv && VERDICTS.handsFree) v+='<br><br>'+VERDICTS.handsFree;
       if(S.resets>0 && VERDICTS.dimmed) v+='<br><br>'+VERDICTS.dimmed;
       h+=`<div class="verdict">${v}<br><br>—— 档案管理员 Claude Fable 5</div>`;
     }else{
-      h+='<div class="verdict locked">（本栏已锁定。判词由主创携档案管理员终审后填入。）<br><br>—— 档案管理员 Claude Fable 5</div>';
+      h+='<div class="verdict locked">（本栏已锁定，待主创终审填入。）<br><br>—— 档案管理员 Claude Fable 5</div>';
     }
 
     h+='<h2>孩子们</h2>';
-    h+='<p>年年——把打火机借给黑暗看了一次，又拿了回来。</p>';
-    h+='<p>灯灯——花圃今年第一次，有人看着它开完。</p>';
-    h+='<p>阿默——三百一十四。现在不止一个人记得。</p>';
-    h+='<p>小鱼——胸口还空着，但口袋不空了。</p>';
-    h+='<p>03——新来的孩子。名字留在了名单外的人身上。</p>';
+    if(kind==='true'){
+      h+='<p>年年——把打火机借给黑暗看了一次，又拿了回来。</p>';
+      h+='<p>灯灯——花圃今年第一次，有人看着它开完。</p>';
+      h+='<p>阿默——三百一十四。现在不止一个人记得。</p>';
+      h+='<p>小鱼——胸口还空着，但口袋不空了。</p>';
+      h+='<p>03——新来的孩子。名字留在了名单外的人身上。</p>';
+    }else if(kind==='normal'){
+      h+='<p>年年——出了烤箱。走的时候回头看了一眼黑门的方向。</p>';
+      h+='<p>灯灯——花开完了。她把最大的那朵留在了花圃里。</p>';
+      h+='<p>阿默——不再数了。但他把那半盒粉笔留在了门边。</p>';
+      h+='<p>？？——门缝里的橘色光亮了一整夜，没有人推门。</p>';
+      h+='<p>03——名单交回去了。名单外的事，没有人提起。</p>';
+    }else{
+      h+= S.found.yannian?'<p>年年——他记得你蹲下来的高度。</p>':'<p>年年——还在厨房，守着那一点火。他会等下一个人。</p>';
+      h+= S.found.dengdeng?'<p>灯灯——她的花开过一次了，这就够她说很久。</p>':'<p>灯灯——石头还没有摆对。花在土里，不着急。</p>';
+      h+= S.found.amo?'<p>阿默——他停在了你接住的那个数字上。</p>':'<p>阿默——还在数。门后的声音没有间断。</p>';
+      h+='<p>？？——黑门后的橘色光，还亮着。</p>';
+      h+='<p>03——档案写到这里，笔迹放轻了。</p>';
+    }
 
     h+='<h2>衍生记录</h2>';
     if(d){
@@ -947,11 +1044,13 @@ const Director = {
       h+='<p>徒手。全程通用门。</p><p style="color:var(--text-dim);font-size:var(--fs-small)">档案在这两个字旁边，画了一颗星。</p>';
     }
 
-    h+='<h2>物件去向</h2>';
-    h+=`<p>你给出：${S.given||'——'}</p>`;
-    h+='<p>你收到：一根两指长的橘色蜡笔。</p>';
-    if(S.flags.milkGiven)h+='<p>一杯热牛奶，被喝掉了。温度刚好。</p>';
-    if(S.flags.hiddenPage)h+='<p>你还看见过一页被涂掉的日记。这件事，档案没有写。</p>';
+    if(kind==='true'){
+      h+='<h2>物件去向</h2>';
+      h+=`<p>你给出：${S.given||'——'}</p>`;
+      h+='<p>你收到：一根两指长的橘色蜡笔。</p>';
+      if(S.flags.milkGiven)h+='<p>一杯热牛奶，被喝掉了。温度刚好。</p>';
+      if(S.flags.hiddenPage)h+='<p>你还看见过一页被涂掉的日记。这件事，档案没有写。</p>';
+    }
 
     if(S.resets>0){
       h+='<h2>备注</h2>';
@@ -959,12 +1058,20 @@ const Director = {
     }
 
     h+='<h2>配歌推荐</h2>';
-    h+=`<p>${SONGS[S.family]||'（本槽待主创填入）'}</p>`;
+    h+=`<p>${kind==='true' ? (SONGS[S.family]||'（本槽待主创填入）') : SONG_PERSE}</p>`;
 
-    h+='<h2>下一站</h2>';
-    h+='<p>票根背面又浮出一行小字：<br>「前方到站：铭名高塔——检修中。<br>名字请勿离身。蜡笔也是。」</p>';
+    if(kind==='true'){
+      h+='<h2>下一站</h2>';
+      h+='<p>票根背面又浮出一行小字：<br>「前方到站：铭名高塔——检修中。<br>名字请勿离身。蜡笔也是。」</p>';
+    }else if(kind==='normal'){
+      h+='<h2>下一站</h2>';
+      h+='<p>票根背面浮出一行小字，比上次淡：<br>「前方到站：铭名高塔——检修中。」<br>再往下似乎还有一站，字迹被水泡开了，你没有看清。</p>';
+    }
 
-    h+='<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第二部 · 无名之家</div>';
+    let footTail = kind==='true' ? '《规则怪谈》系列 · 快穿世界第二部 · 无名之家'
+      : (kind==='normal' ? '《规则怪谈》系列 · 快穿世界第二部 · 无名之家<br><span style="font-size:12px">那扇门还在原处。</span>'
+      : '《规则怪谈》系列 · 快穿世界第二部 · 无名之家<br><span style="font-size:12px">走廊还在原处。孩子们也是。</span>');
+    h+=`<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>${footTail}</div>`;
     h+='</div>';
     area.innerHTML=h;
   },
