@@ -134,8 +134,6 @@ html,body{
     radial-gradient(ellipse at 100% 0%, rgba(201,138,75,0.18), transparent 60%);
 }
 #warm-glow.on{opacity:1}
-#bgm-wrap{position:fixed;top:calc(var(--safe-top) + 52px);right:8px;z-index:99;overflow:hidden;max-height:0;opacity:0;transition:max-height 0.4s ease,opacity 0.3s ease;border-radius:8px;filter:brightness(0.6) saturate(0.5)}
-#bgm-wrap.open{max-height:90px;opacity:0.85}
 #sound-toggle{
   position:fixed;
   top:calc(var(--safe-top) + 12px);
@@ -253,7 +251,7 @@ body.light-on #warm-glow{opacity:0.25}
 <div id="curtain"></div>
 <div id="warm-glow"></div>
 <button id="sound-toggle" aria-label="sound">&#9834;</button>
-<div id="bgm-wrap"><iframe id="bgm-player" frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" allow="autoplay; encrypted-media" data-src="https://music.163.com/outchain/player?type=2&id=2703190915&auto=1&height=66"></iframe></div>
+<audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
 <button id="light-toggle" aria-label="light">&#128161;</button>
 <div id="chalk-marks"></div>
 <div id="stage">
@@ -470,14 +468,22 @@ const Sound = {
     } catch(e) {}
   },
   toggle() {
-    this.enabled = !this.enabled;
-    $('#sound-toggle').textContent = this.enabled ? '♫' : '♪';
-    $('#bgm-wrap').classList.toggle('open', this.enabled);
-    const player = $('#bgm-player');
-    if (this.enabled) {
-      if (!player.getAttribute('src')) player.src = player.dataset.src;
+    const audio = $('#bgm-audio');
+    const btn = $('#sound-toggle');
+    if (!this.enabled) {
+      audio.volume = 0.5;
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => {
+        // bgm.mp3 missing or format unsupported - revert silently
+        this.enabled = false;
+        btn.textContent = '♪';
+      });
+      this.enabled = true;
+      btn.textContent = '♫';
     } else {
-      player.removeAttribute('src');
+      audio.pause();
+      this.enabled = false;
+      btn.textContent = '♪';
     }
   }
 };
