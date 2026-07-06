@@ -253,7 +253,7 @@ body.light-on #warm-glow{opacity:0.25}
 <div id="curtain"></div>
 <div id="warm-glow"></div>
 <button id="sound-toggle" aria-label="sound">&#9834;</button>
-<div id="bgm-wrap"><iframe id="bgm-player" frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" src="//music.163.com/outchain/player?type=2&id=2703190915&auto=0&height=66"></iframe></div>
+<div id="bgm-wrap"><iframe id="bgm-player" frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" allow="autoplay; encrypted-media" data-src="https://music.163.com/outchain/player?type=2&id=2703190915&auto=1&height=66"></iframe></div>
 <button id="light-toggle" aria-label="light">&#128161;</button>
 <div id="chalk-marks"></div>
 <div id="stage">
@@ -473,6 +473,12 @@ const Sound = {
     this.enabled = !this.enabled;
     $('#sound-toggle').textContent = this.enabled ? '♫' : '♪';
     $('#bgm-wrap').classList.toggle('open', this.enabled);
+    const player = $('#bgm-player');
+    if (this.enabled) {
+      if (!player.getAttribute('src')) player.src = player.dataset.src;
+    } else {
+      player.removeAttribute('src');
+    }
   }
 };
 $('#sound-toggle').addEventListener('click', () => Sound.toggle());
@@ -628,7 +634,7 @@ nodes: {
   ]},
   chalkMark: '地上有粉笔写的算式：37−12=？答案没被擦掉，是25。算式的等号指向左边。',
   choices: [
-    { id: 'c4_left', text: '沿粉笔的方向左转', next: 'N05_chalk_path', effects: [{ attr: 'curiosity', op: 'inc' }] },
+    { id: 'c4_left', text: '沿粉笔的方向左转', next: 'N05_chalk_path', chalk: true, effects: [{ attr: 'curiosity', op: 'inc' }] },
     { id: 'c4_right', text: '推开右边透光的门', next: 'N05_convenience', effects: [] },
     { id: 'c4_letter', text: '先看那封信', next: 'N05_letter_found', effects: [] },
     { id: 'c4_back', text: '回头确认那个多出的半拍', next: 'N05_turn_back', effects: [{ attr: 'curiosity', op: 'inc' }] }
@@ -683,7 +689,7 @@ nodes: {
   ]},
   chalkMark: '粉笔的末端指向一扇贴着"失物招领"木牌的门。',
   choices: [
-    { id: 'c5a_lost', text: '进入失物招领处', next: 'N06_lost_found', effects: [] },
+    { id: 'c5a_lost', text: '进入失物招领处', next: 'N06_lost_found', chalk: true, effects: [] },
     { id: 'c5a_skip', text: '继续往前走，不停留', next: 'N06_mid_hallway', effects: [] }
   ]
 },
@@ -720,8 +726,8 @@ nodes: {
 },
 
 'N07_deposit_item': {
-  text: '你打开一格储物柜，把口袋里一张不知何时出现的纸条放了进去。锁好。转身的时候你感觉手轻了——不止一张纸的重量。像是连带着某种没说出口的心事，也一并存进去了。结果页会原样奉还。',
-  effects: [{ deposit: { text: '一张写着陌生笔迹的纸条', isName: false } }],
+  text: '你打开一格储物柜，把口袋里一张不知何时出现的纸条放了进去——上面用陌生的笔迹写着一个陌生的名字。锁好。转身的时候你感觉手轻了——不止一张纸的重量。像是连带着某种没说出口的心事，也一并存进去了。结果页会原样奉还。',
+  effects: [{ deposit: { text: '一张写着陌生名字的纸条', isName: false } }],
   choices: [
     { id: 'c7_go', text: '继续前进', next: 'N06_mid_hallway', effects: [] }
   ]
@@ -942,7 +948,7 @@ nodes: {
   isExplore: true,
   sceneSvg: SVG_STAIRWELL_UP,
   slideDir: 'up',
-  caption: '蓝底白字告示牌浆糊未干："自明日（14日）零点起，禁止向12层以上投递任何活物。"你摸了摸未干的胶水，指尖沾上白色粉末。墙上挂钟的指针刚走过13日的23:45。',
+  caption: '蓝底白字告示牌浆糊未干："自明日（14日）零点起，名字未经登记者，不得在本楼过夜。"你摸了摸未干的胶水，指尖沾上白色粉末。墙上挂钟的指针刚走过13日的23:45。',
   choices: [
     { id: 'ce2_continue_up', text: '继续往上', next: 'N_warden_2', effects: [] }
   ]
@@ -978,8 +984,8 @@ nodes: {
   caption: '深绿色油漆剥落，露出下方凸起的"301"旧钢印。',
   chalkMark: '门板上有一道粗糙的白粉笔划痕："301 - [已擦除] = →"，箭头直指走廊尽头的安全通道。',
   choices: [
-    { id: 'ce4_follow', text: '跟着箭头走', next: 'N11_hallway_continue', effects: [{ flag: 'followed_doorplate' }] },
-    { id: 'ce4_ignore', text: '不管箭头，自己找路', next: 'N11_hallway_continue', effects: [] },
+    { id: 'ce4_follow', text: '跟着箭头走', next: 'N11_hallway_continue', chalk: true, effects: [{ flag: 'followed_doorplate' }] },
+    { id: 'ce4_ignore', text: '不管箭头，自己找路', next: 'N11_hallway_continue', chalk: true, effects: [] },
     { id: 'ce4_c403', text: '留意到隔壁一块漆面异常的门牌', next: 'N_C403_doorplate', effects: [] }
   ]
 },
@@ -1192,7 +1198,7 @@ nodes: {
   ]},
   chalkMark: '脚下的柏油路上，一道粉笔画的白色双箭头，笔直地穿过站台边缘，探入车门。笔迹与楼里那些算式同出一手。',
   choices: [
-    { id: 'c20_board', text: '上车', next: 'N21_boarding', effects: [] }
+    { id: 'c20_board', text: '上车', next: 'N21_boarding', chalk: true, effects: [] }
   ]
 },
 
@@ -1204,7 +1210,7 @@ nodes: {
   chalkMark: '通往车头的连接门上，出现一枚粉笔箭头——笔迹与墙上那道算式相同，指向列车前方。',
   fx: 'lightsOffAtEnd',
   choices: [
-    { id: 'c21_depart', text: '发车', next: 'N22_departure', effects: [] }
+    { id: 'c21_depart', text: '发车', next: 'N22_departure', chalk: true, effects: [] }
   ]
 },
 
@@ -1342,7 +1348,7 @@ nodes: {
   text: '档案室木门半掩，钥匙串已被挂在门把手上，正微微晃动。那个高大的黑影背对你站立，手中钢笔在登记簿上发出沙沙的划线声。它没有回头，却准确地念出了你的名字。',
   textLight: '档案室木门半掩，钥匙串挂在门把手上，静静地。一个高大的影子背对你站立，手中钢笔在登记簿上发出沙沙的划线声。它只是安静地写着什么，没有回头。',
   choices: [
-    { id: 'cw3_safe', text: '站在原地，大声答"到"，递出捡到的请假条', next: 'N_warden_3_pass', effects: [] },
+    { id: 'cw3_safe', text: '大声答"到"，请它归还属于你的名字，带在身上', next: 'N_warden_3_pass', effects: [] },
     { id: 'cw3_rip', text: '夺走写有自己名字的登记表页，当面撕毁', next: 'N_warden_3_pass', effects: [{ attr: 'registry', op: 'set', value: 10 }] }
   ]
 },
@@ -1350,9 +1356,9 @@ nodes: {
 'N_warden_3_pass': {
   text: function() {
     if (State.attr('registry') >= 10) {
-      return '它转过头来。没有表情，只有确认。登记簿合上了。你的名字，已经写进去了。';
+      return '碎纸落地。它转过头来，没有表情，只有确认。你亲手撕掉的，是你自己的名字。没有名字的人，末班车不载。登记簿翻开新的一页，替你补了一行——这一次，笔迹不是你的。';
     }
-    return '它收起钢笔，转身推开档案室的门。门内有灯。它让开了路。';
+    return '它收起钢笔，从登记簿上撕下写着你名字的那一页，折好，递给你。名字回到你手里，比想象中轻。它转身推开档案室的门。门内有灯。它让开了路。';
   },
   choices: function() {
     if (State.attr('registry') >= 10) {
@@ -1503,10 +1509,11 @@ songSlots: {
 // ==== GAME DIRECTOR ====
 const Director = {
 
-  showChalkMark(text) {
+  showChalkMark(text, nodeId) {
     const container = $('#chalk-marks');
     const mark = el('div', 'chalk-mark', text);
     container.appendChild(mark);
+    if (nodeId) this._revealChalkChoices(nodeId);
     setTimeout(() => {
       mark.style.transition = 'opacity 1.5s ease';
       mark.style.opacity = '0';
@@ -1565,18 +1572,33 @@ const Director = {
     const box = $('#choices');
     box.innerHTML = '';
     const resolvedChoices = typeof choices === 'function' ? choices() : choices;
-    resolvedChoices.forEach(choice => {
-      const btn = el('button', 'choice-btn', choice.text);
-      btn.addEventListener('click', () => {
-        Sound.tryUnlock();
-        this.handleChoice(choice, nodeId);
-      }, { once: true });
-      box.appendChild(btn);
-    });
+    const nowChoices = resolvedChoices.filter(c => !c.chalk);
+    const laterChoices = resolvedChoices.filter(c => c.chalk);
+    nowChoices.forEach(choice => box.appendChild(this._makeChoiceBtn(choice, nodeId)));
+    this._deferredChalk = laterChoices.length ? { nodeId, choices: laterChoices } : null;
     requestAnimationFrame(() => box.classList.add('visible'));
   },
 
+  _makeChoiceBtn(choice, nodeId) {
+    const btn = el('button', 'choice-btn', choice.text);
+    btn.addEventListener('click', () => {
+      Sound.tryUnlock();
+      this.handleChoice(choice, nodeId);
+    }, { once: true });
+    return btn;
+  },
+
+  _revealChalkChoices(nodeId) {
+    const d = this._deferredChalk;
+    if (!d || d.nodeId !== nodeId || State.current.nodeId !== nodeId) return;
+    this._deferredChalk = null;
+    const box = $('#choices');
+    d.choices.forEach(choice => box.appendChild(this._makeChoiceBtn(choice, nodeId)));
+    box.classList.add('visible');
+  },
+
   async handleChoice(choice, fromNodeId) {
+    this._deferredChalk = null;
     document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
     $('#choices').classList.remove('visible');
     State.record(fromNodeId, choice.text);
@@ -1662,7 +1684,7 @@ const Director = {
 
     // chalk mark for explore nodes
     if (node.chalkMark) {
-      setTimeout(() => this.showChalkMark(node.chalkMark), 3000);
+      setTimeout(() => this.showChalkMark(node.chalkMark, nodeId), 3000);
     }
 
     await sleep(350);
@@ -1766,7 +1788,7 @@ const Director = {
 
     // chalk mark: delayed hint at page border
     if (node.chalkMark) {
-      setTimeout(() => this.showChalkMark(node.chalkMark), 3000);
+      setTimeout(() => this.showChalkMark(node.chalkMark, nodeId), 3000);
     }
 
     if (node.isFailLoop) {
@@ -1863,6 +1885,9 @@ const Director = {
     const songSlotKey = family.songSlot;
     const song = STORY.songSlots[songSlotKey] || STORY.songSlots._default;
     html += `<p>${song}</p>`;
+
+    html += '<h2>随票附赠</h2>';
+    html += '<p>票根背面浮着一行极淡的小字，像被水洗过很多遍：<br>「本次列车沿途停靠：留名 · 无名之家 · 铭名高塔 · 千阶问名 ……终点站字迹涂改不清。<br>凡随身带着名字的乘客，均可在任意一站下车走走。名字请勿离身。」</p>';
 
     html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
 
