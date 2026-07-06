@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>·</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-base:#0b0d0c;
+  --bg-panel:#131714;
+  --text-main:#d2d4cd;
+  --text-dim:#696e68;
+  --text-rule:#b6bab1;
+  --green-wall:#9db8a4;
+  --warm:#d08a3e;
+  --ring:#8fa8b8;
+  --border:#232a25;
+  --font-main:-apple-system,"PingFang SC","Noto Sans SC","Hiragino Sans GB",sans-serif;
+  --fs-body:17px;
+  --fs-small:14px;
+  --fs-title:22px;
+  --lh:1.9;
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+  --content-max:540px;
+  --gutter:22px;
+  --tap-min:52px;
+}
+html,body{
+  height:100%;
+  background:var(--bg-base);
+  color:var(--text-main);
+  font-family:var(--font-main);
+  font-size:var(--fs-body);
+  line-height:var(--lh);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+#stage{
+  min-height:100dvh;
+  padding:calc(var(--safe-top) + var(--gutter) + 30px) var(--gutter) calc(var(--safe-bottom) + 80px);
+  max-width:var(--content-max);
+  margin:0 auto;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;z-index:1;
+}
+#text-area{min-height:40vh;display:flex;flex-direction:column;justify-content:center;white-space:pre-wrap}
+.line{margin-bottom:1.2em;color:var(--text-rule);letter-spacing:0.03em}
+.line .cursor{display:inline;animation:blink 1s step-end infinite;color:var(--text-dim)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.ring{color:var(--ring);letter-spacing:0.05em}
+.blackboard{color:#c8cfc0;font-family:"Courier New",monospace}
+#choices{margin-top:2em;opacity:0;transition:opacity 0.4s ease}
+#choices.visible{opacity:1}
+.choice-btn{
+  display:block;width:100%;min-height:var(--tap-min);
+  padding:14px 18px;margin-bottom:12px;
+  background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;
+  color:var(--text-main);font-size:var(--fs-body);font-family:var(--font-main);
+  line-height:1.6;text-align:left;cursor:pointer;touch-action:manipulation;
+  transition:background 0.15s,border-color 0.15s;
+}
+.choice-btn:active{background:var(--border);border-color:#36402f}
+.choice-btn:disabled{opacity:0.4;pointer-events:none}
+.choice-btn.deriv{border-color:#3a4a42;color:#b9c8bd}
+#curtain{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.35s ease}
+#curtain.dark{opacity:1}
+#lamp-hud{
+  position:fixed;top:calc(var(--safe-top) + 12px);right:14px;z-index:90;
+  font-size:12px;color:var(--text-dim);letter-spacing:0.15em;
+  font-family:"Courier New",monospace;opacity:0.75;pointer-events:none;
+}
+#lamp-hud .seg-on{color:#cfc39a}
+#lamp-hud .seg-off{color:#33362f}
+#chalk-marks{position:fixed;bottom:12px;left:16px;right:16px;pointer-events:none;z-index:5}
+.chalk-mark{font-size:13px;color:rgba(220,216,205,0.62);font-family:'Courier New',monospace;letter-spacing:0.08em;opacity:0;animation:chalkIn 0.8s ease forwards;margin-top:4px}
+@keyframes chalkIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:0.62;transform:translateY(0)}}
+#toast{
+  position:fixed;top:calc(var(--safe-top) + 40px);left:0;right:0;text-align:center;
+  font-size:13px;color:#cfc39a;opacity:0;transition:opacity 0.8s ease;pointer-events:none;z-index:95;
+  letter-spacing:0.1em;
+}
+#toast.show{opacity:0.85}
+#warm-glow{
+  position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity 3s ease;
+  background:radial-gradient(ellipse at 50% 100%, rgba(208,138,62,0.30), transparent 60%);
+}
+#warm-glow.on{opacity:1}
+.result-page{padding:20px 0}
+.result-page h1{font-size:var(--fs-title);color:var(--text-main);margin-bottom:0.5em;font-weight:600}
+.result-page h2{font-size:var(--fs-body);color:var(--text-dim);margin:1.5em 0 0.5em;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:6px}
+.result-page p{margin-bottom:0.6em;color:var(--text-rule)}
+.result-page .verdict{
+  margin:1.5em 0;padding:16px;border-left:3px solid #4a4438;background:var(--bg-panel);
+  border-radius:0 8px 8px 0;line-height:1.8;color:var(--text-dim);font-style:italic;
+}
+.result-page .footer{margin-top:3em;padding-top:1em;border-top:1px solid var(--border);color:var(--text-dim);font-size:var(--fs-small);text-align:center}
+</style>
+</head>
+<body>
+<div id="curtain"></div>
+<div id="warm-glow"></div>
+<div id="lamp-hud"></div>
+<div id="toast"></div>
+<div id="chalk-marks"></div>
+<div id="stage">
+  <div id="text-area"></div>
+  <div id="choices"></div>
+</div>
+
+<script>
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function $(s){return document.querySelector(s)}
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x)e.textContent=x;return e}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ==== 异能衍生（零后端：URL hash 分流）====
+const DERIVS = {
+  kanzhu:  { name:'看住',   src:'直视·石化路', desc:'盯住一点将灭的火七秒，它今晚就不会灭。', price:'你替火醒着，梦里就少了一段你自己的光。' },
+  xianying:{ name:'显影',   src:'直视·透写路', desc:'看出纸背没写出来的那一笔。',             price:'你看见了不给你看的那页，从此合不拢书。' },
+  timing:  { name:'替名',   src:'代答·冒名路', desc:'用不属于自己的声音，替一个名字应一声。', price:'土记住了那声应答的嗓音，不是你的。' },
+  jieshu:  { name:'接数',   src:'代答·执行路', desc:'抢在下一个数字之前，替人数一拍。',       price:'那一拍从此归你数，忘了也归你。' },
+  huifang: { name:'回放',   src:'折返·拖延路', desc:'把刚过去的一拍倒回来再看一遍。',         price:'被倒回的那一拍，会在别处补灭。' },
+  fendeng: { name:'分灯',   src:'折返·均摊路', desc:'把亮分薄一线，渡进暗房。',               price:'每盏灯都欠你一线，你欠每间暗房一线。' },
+  zuojiao: { name:'左脚先进', src:'扭蛋·规格外「不合脚的左蝉翼」', desc:'从没被登记的那一侧进门，看见门内侧的字。', price:'规则没登记这只脚，也就不接它回来。' },
+};
+const PARAM_MAP = {
+  zhishi_petrify:'kanzhu', zhishi_rewrite:'xianying',
+  daida_impersonate:'timing', daida_execute:'jieshu',
+  zhefan_delay:'huifang', zhefan_share:'fendeng',
+  gacha_special:'zuojiao',
+};
+function parseEntry(){
+  try{
+    const h = new URLSearchParams(location.hash.replace(/^#/,''));
+    const p = (h.get('p')||'').toLowerCase();
+    if (PARAM_MAP[p]) return { deriv: PARAM_MAP[p], diluted:false, fromW1: h.get('from')==='w1' };
+    if (p === 'gacha') {
+      const pool = ['kanzhu','xianying','timing','jieshu','huifang','fendeng'];
+      return { deriv: pool[Math.floor(Math.random()*pool.length)], diluted:true, fromW1: h.get('from')==='w1' };
+    }
+  }catch(e){}
+  return { deriv:null, diluted:false, fromW1:false };
+}
+
+// ==== 状态 ====
+const S = {
+  lamp:6,
+  deriv:null, diluted:false, fromW1:false,
+  derivUsed:false,
+  found:{yannian:false,dengdeng:false,amo:false,xiaoyu:false},
+  items:{torch:false,chalk:false,candy:false,milk:false},
+  flags:{},
+  given:null,
+  history:[],
+  resets:0,
+  hubVisited:false,
+};
+function allFound(){return S.found.yannian&&S.found.dengdeng&&S.found.amo&&S.found.xiaoyu}
+function foundCount(){return ['yannian','dengdeng','amo'].filter(k=>S.found[k]).length}
+
+// ==== 表现层 ====
+const UI = {
+  renderLamp(){
+    let h='走廊的灯 ';
+    for(let i=0;i<6;i++) h+=`<span class="${i<S.lamp?'seg-on':'seg-off'}">▮</span>`;
+    $('#lamp-hud').innerHTML=h;
+  },
+  toast(msg){
+    const t=$('#toast');
+    t.textContent=msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),3200);
+  },
+  chalk(text){
+    const c=$('#chalk-marks');
+    const m=el('div','chalk-mark',text);
+    c.appendChild(m);
+    setTimeout(()=>{m.style.transition='opacity 1.5s ease';m.style.opacity='0';setTimeout(()=>m.remove(),1600)},9000);
+  },
+  async curtain(dim=350,hold=450,rise=350){
+    const c=$('#curtain');
+    c.style.transition=`opacity ${dim}ms ease`;c.classList.add('dark');
+    await sleep(dim+hold);
+    c.style.transition=`opacity ${rise}ms ease`;c.classList.remove('dark');
+    await sleep(rise);
+  },
+};
+
+// 打字机：段落式，「」起始段落染成银环色，␣B前缀段落为黑板体
+const Type = {
+  skipFlag:false,
+  async play(text,container){
+    this.skipFlag=false;
+    const paras = text.split('\n');
+    let html='';
+    const render=(cur,done)=>{container.innerHTML=html+cur+(done?'':'<span class="cursor">▌</span>')};
+    for(let pi=0;pi<paras.length;pi++){
+      const p=paras[pi];
+      const cls = p.startsWith('「') ? 'ring' : (p.startsWith('␣B') ? 'blackboard' : '');
+      const body = p.startsWith('␣B') ? p.slice(2) : p;
+      let cur='';
+      const open = cls?`<span class="${cls}">`:'';
+      const close = cls?'</span>':'';
+      if(this.skipFlag){ html+=open+esc(body)+close+'\n'; continue; }
+      for(const ch of body){
+        cur+=ch;
+        render(open+esc(cur)+close,false);
+        if(!this.skipFlag) await sleep(28);
+      }
+      html+=open+esc(body)+close+'\n';
+      render('',false);
+      if(!this.skipFlag && body.trim()) await sleep(140);
+    }
+    render('',true);
+  },
+  skip(){this.skipFlag=true},
+};
+document.addEventListener('pointerdown',()=>Type.skip());
+
+// ==== 剧情节点 ====
+function derivIs(k){return S.deriv===k}
+function derivBtnLabel(k,label){
+  const d=DERIVS[S.deriv];
+  return `【${d.name}${S.diluted?'·稀释':''}】${label}`;
+}
+function zuojiaoLine(line){
+  if(!derivIs('zuojiao')) return '';
+  S.derivUsed=true;
+  return `\n\n（你左脚先落了地。门内侧浮出一行只给你看的字：「${line}」）`;
+}
+
+const NODES = {
+
+W2_000:{
+  text(){
+    let t='没有过渡。\n';
+    t+= S.fromW1
+      ? '上一秒你还坐在末班车靠窗的位置，票根还捏在手里。下一秒，所有光同时熄灭又亮起。'
+      : '上一秒你还在别处。下一秒，所有光同时熄灭又亮起。';
+    t+='\n\n你站在一条走廊中央。脚下是开裂的黑白棋盘格地砖，空气里有很淡的消毒水味。两侧的墙刷着机构特有的浅绿色，一米二以下换成发黄的白。墙上每隔三米挂一幅蜡笔画：太阳、房子、手拉手的小人。画框是铁的，钉死在墙里。';
+    t+='\n\n你低头看自己。白色长袖，灰色长裤，左胸口一个编号：03。';
+    t+='\n\n右手腕上多了一圈很细的银环，贴着皮肤，微凉。环面浮出小字——';
+    t+='\n「副本目标：熄灯前，找到所有孩子。」\n「走廊的灯：还剩六格。」';
+    return t;
+  },
+  choices:[{t:'看下一行字',n:'W2_010'}]
+},
+
+W2_010:{
+  text(){
+    let t='「报上你随身带来的东西。」\n\n';
+    if(S.deriv){
+      const d=DERIVS[S.deriv];
+      t+='你还没开口，银环自己读出了答案——像是在你上车那一刻，就已经登记过了。\n';
+      t+=`「登记确认：${d.src}。」\n「本院衍生：【${d.name}${S.diluted?'·稀释':''}】——${d.desc}」`;
+      if(S.diluted) t+='\n\n那行字比正常的淡一截，像是借来的。';
+    }else{
+      t+='你摸遍了口袋。什么都没有。\n你只有一个名字。\n\n「登记确认：新来的孩子。」\n「通用门全程开放。失物箱会照顾你。」';
+    }
+    return t;
+  },
+  choices:[{t:'抬头看走廊',n:'W2_020'}]
+},
+
+W2_020:{
+  text:'走廊尽头有两扇门。左边那扇漆面完好；右边那扇缺了门把手，只剩一个锁孔。\n\n很远的地方，隔了好几堵墙，有个孩子在唱歌。调子很慢，像数数的童谣。旋律走了三句就停，然后从头开始。走三句，停。从头。',
+  choices(){
+    const c=[
+      {t:'推左边漆面完好的门（活动室）',n:'W2_030'},
+      {t:'推右边缺把手的门（宿舍走廊）',n:'W2_040'},
+    ];
+    if(derivIs('huifang')&&!S.flags.heardSong){
+      c.push({t:derivBtnLabel('huifang','把刚停下的三句倒回来，听清词'),n:'W2_021',deriv:true});
+    }
+    return c;
+  }
+},
+
+W2_021:{
+  enter(){S.flags.heardSong=true;S.derivUsed=true},
+  text:'你把刚刚过去的三句倒了回来。这一次，词很清楚——\n\n"一盏灯呀两盏灯，数到三百嘴不停……"\n\n是首数数歌。有人在很暗的地方，用它给自己壮胆。\n\n你记住了这个数法。',
+  choices:[
+    {t:'推左边的门（活动室）',n:'W2_030'},
+    {t:'推右边的门（宿舍走廊）',n:'W2_040'},
+  ]
+},
+
+W2_030:{
+  text(){
+    let t='活动室。地上散着积木、蜡笔、缺角的拼图。靠墙一排矮柜，柜门贴着手写的名字标签——\n\n「小鱼」「年年」「灯灯」「阿默」\n\n第五张标签被撕掉了，只剩一个角。你拉开第五个柜子：里面只有一盒蜡笔。十一根。唯独少了橘色。';
+    t+='\n\n墙角立着一块小黑板，粉笔字写着两行式子：\n␣Ba² + b² = c²\n␣Be^{iπ} + 1 = 0\n\n下面是另一种笔迹，很小，写得很认真：\n␣B"对称的东西不会丢。"';
+    t+=zuojiaoLine('名字是画上去的第一笔。');
+    return t;
+  },
+  choices:[{t:'出门，往宿舍走廊去',n:'W2_040'}]
+},
+
+W2_040:{
+  text:'一条更窄的走廊。两侧是一扇接一扇的宿舍门，小窗里嵌着铁丝网。每一间：床铺得整整齐齐，枕头凹着头的形状，没有人。\n\n第六间没关严。第八张床的被子被拉到地上，枕头翻着面，背面用圆珠笔写着一行字，笔尖几乎划破布料——\n\n「别关灯。」\n\n你走到拐角，一个孩子的声音贴得很近，像就站在墙的另一边：\n\n"——你们来找我们了吗？别关灯哦。"\n\n拐角后面没有人。地上多了一张对折的纸。',
+  choices:[{t:'捡起来打开',n:'W2_050'}]
+},
+
+W2_050:{
+  text(){
+    if(S.lamp<=0 && !allFound()) return '';
+    if(!S.hubVisited){
+      S.hubVisited=true;
+      return '一张手绘的平面图。像小孩画的，但比例出奇地准。\n\n红色：厨房。旁边一个笑脸，写着"年年在这里"。\n绿色：后花园。画了很多圈圈，像花，又像眼睛。\n黄色：院长办公室。旁边画了一把锁。\n蓝色：地下室。没有字，但蓝色蜡笔反复涂了很多层，纸都起毛了。\n\n第五个位置用黑色蜡笔画了一个方块，方块里一条竖线——一扇关着的门。没有名字。\n\n「副本目标更新：找到所有孩子。」';
+    }
+    let t='地图在你手里。';
+    const who=[];
+    if(S.found.yannian)who.push('年年攥着口袋里的打火机');
+    if(S.found.dengdeng)who.push('灯灯走在你右手边');
+    if(S.found.amo)who.push('阿默不碰任何人，但步子和你完全同步');
+    if(who.length)t+='\n'+who.join('。')+'。';
+    if(foundCount()===3&&!S.found.xiaoyu)t+='\n\n只剩那个黑色的方块了。';
+    return t;
+  },
+  enter(){
+    if(foundCount()===3&&!S.found.xiaoyu&&!S.flags.chalkFib){
+      S.flags.chalkFib=true;
+      setTimeout(()=>UI.chalk('1, 1, 2, 3——数列的下一项，是把前面所有加起来的那个。'),2500);
+    }
+  },
+  choices(){
+    const c=[];
+    if(!S.found.yannian)c.push({t:'红色——厨房',n:'W2_100'});
+    if(!S.found.dengdeng)c.push({t:'绿色——后花园',n:'W2_200'});
+    if(!S.flags.office)c.push({t:'黄色——院长办公室',n:'W2_300'});
+    if(!S.found.amo)c.push({t:'蓝色——地下室',n:'W2_400'});
+    c.push({t:'黑色——没有名字的门',n: foundCount()>=3 ? 'W2_500' : 'W2_505'});
+    if(!S.flags.clinic)c.push({t:'走廊中段，一扇虚掩的门（保健室）',n:'W2_350'});
+    return c;
+  }
+},
+
+W2_505:{
+  text:'你走到那扇门前。门把手上落着灰，很久没有人从外面碰过。门缝里透出一线橘色的光。\n\n你推了推。门没动。里面很安静——不是拒绝的安静，是没想到会有人来的安静。\n\n「还有人等你。」',
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 厨房（年年）=====
+W2_100:{
+  text(){
+    let t='厨房比想象中干净。灶台擦过，铁锅倒扣着。但冰箱门上贴满了纸条，小孩的字迹，歪歪扭扭——全是食谱。\n\n「年年的早餐：牛奶要热的。吐司烤两面。」\n「年年给灯灯的：灯灯不吃甜的。灯灯的东西放第三格。」\n\n十几张。有给自己的，有给别人的。\n\n空气里有一股很淡的焦味。不是食物。更像纸。';
+    t+=zuojiaoLine('火也是一种名字。');
+    return t;
+  },
+  choices:[{t:'翻一翻灶台边的抽屉',n:'W2_110'}]
+},
+
+W2_110:{
+  text(){
+    let t='抽屉里有一本巴掌大的本子。封面用蜡笔画了一条鱼。\n\n「年年的日记。不许看。」\n\n你翻开了。\n\n"灯灯又在花园摆石头。她说那是她的花。"\n"灯灯教我她的花怎么排：绿色的要挨着绿色的。红色的不能挨着红色的。最大的绿色石头永远在最上面——她说那个是太阳。"\n"有一块石头骗人。要翻过来才知道。"';
+    return t;
+  },
+  enter(){S.flags.diaryRules=true},
+  choices(){
+    const c=[];
+    if(derivIs('xianying')&&!S.flags.hiddenPage){
+      c.push({t:derivBtnLabel('xianying','日记里有一页被黑蜡笔整页涂死——看它'),n:'W2_111',deriv:true});
+    }
+    c.push({t:'合上日记',n:'W2_120'});
+    return c;
+  }
+},
+
+W2_111:{
+  enter(){S.flags.hiddenPage=true;S.derivUsed=true},
+  text:'你的眼睛发热。黑蜡笔的涂层像退潮一样褪开，底下浮出一行小字：\n\n"小鱼教我写名字。他写得最好看。可是他从来不写自己的。"\n\n涂层合拢回去了。这一页，是他自己涂掉的。',
+  choices:[{t:'合上日记',n:'W2_120'}]
+},
+
+W2_120:{
+  text:'焦味变浓了一点。\n\n灶台下面的烤箱门关着，玻璃是黑的。但里面有一个很小的光点，一闪，一闪。\n\n不像在玩。像在确认光还在。',
+  choices(){
+    const c=[];
+    if(derivIs('kanzhu')&&!S.flags.kanzhuUsed){
+      c.push({t:derivBtnLabel('kanzhu','隔着黑玻璃，盯住那点火七秒'),n:'W2_121',deriv:true});
+    }
+    c.push({t:'蹲下来，拉开烤箱门',n:'W2_130'});
+    return c;
+  }
+},
+
+W2_121:{
+  enter(){S.flags.kanzhuUsed=true;S.derivUsed=true},
+  text:'你蹲下来，隔着黑玻璃盯住那点火。\n\n一秒。两秒。……七秒。\n\n火稳住了。不再是一闪一闪，是安安静静地亮着——今晚它不会灭了。\n\n烤箱里的呼吸松了半拍。一个闷闷的声音先开了口：\n\n"……你怎么知道我在看火。"',
+  choices:[{t:'拉开烤箱门',n:'W2_130'}]
+},
+
+W2_130:{
+  text:'烤箱里蜷着一个孩子。六七岁，男孩，抱着膝盖，脸埋在臂弯里。编号07。手里攥着一个打火机——那点光就是它。\n\n"……你们是新来的吗。"\n\n他没抬头，又说：\n\n"别关灯。拜托。什么灯都行。这个也行。"\n\n他把打火机举起来一点。火苗照亮半张脸，圆圆的，有雀斑。',
+  choices:[
+    {t:'蹲下来平视他："门不关。我们就这样待着。"',n:'W2_140'},
+    {t:'"出来吧，没事的。"',n:'W2_131'},
+  ]
+},
+
+W2_131:{
+  text:'他把脸埋回臂弯里。打火机的火缩小了一圈。\n\n银环安静着，没有提示。\n\n——他不是不信你。是这句话，他听过太多次了。',
+  choices:[
+    {t:'蹲下来平视他："门不关。我们就这样待着。"',n:'W2_140'},
+  ]
+},
+
+W2_140:{
+  enter(){
+    S.found.yannian=true;
+    S.lamp--;UI.renderLamp();
+    setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
+  },
+  text(){
+    let t='他盯着你看了大概五秒。打火机的火跳了两下。\n\n然后他自己从烤箱里爬出来了。没有人叫他。他把打火机揣进口袋，很郑重，像收好一样很珍贵的东西。\n\n"我跟你们走。"\n\n他拉住你的袖子，又想起什么似的仰起头：\n\n"你要去找灯灯吗。她在花园。但你去了看不见她——要先把她的花摆对。绿色挨着绿色，红色不挨红色，最大那块在最上面。"\n\n他笑了一下，很小的笑：\n\n"她说那个是太阳。"\n\n「找到孩子：年年。」';
+    if(S.items.milk){t+='\n\n你把保健室带出来的那杯热牛奶递给他。他捧着喝了一口，很小声地说："……和小鱼热的一个温度。"';S.items.milk=false;S.flags.milkGiven=true;}
+    return t;
+  },
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 花园（灯灯）=====
+W2_200:{
+  text(){
+    let t='后花园。围墙很高，爬满深绿色的藤，没有花。中间一棵树，枝干四面撑开，像一把撑坏了的伞。\n\n树下摆着一圈鹅卵石，十二块，围得很整齐。圈中间的土是新翻的。圈里插着一块歪歪的木牌：\n\n「灯灯的花圃。请勿踩踏。」\n\n你翻开一块石头看底面：用蜡笔画着圈。绿色的圈里有一个点，红色的圈里什么都没有。绿色八块，红色四块。';
+    t+=zuojiaoLine('花记得埋它的人。');
+    return t;
+  },
+  choices(){
+    const c=[];
+    const hasClue=S.flags.diaryRules||S.found.yannian;
+    if(hasClue){
+      c.push({t:'按规则摆：绿挨绿，红分开，太阳在最上面',n:'W2_212'});
+    }else{
+      c.push({t:'凭感觉试着摆一摆',n:'W2_211'});
+    }
+    if(derivIs('timing')&&!S.flags.timingUsed){
+      c.push({t:derivBtnLabel('timing','把手贴在土上，替"灯灯"应一声'),n:'W2_213',deriv:true});
+    }
+    c.push({t:'先去别处，回头再来',n:'W2_050'});
+    return c;
+  }
+},
+
+W2_211:{
+  enter(){
+    S.lamp--;UI.renderLamp();
+    setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
+    setTimeout(()=>UI.chalk('样本量不足：n=1。有完整记录的地方，在红色。'),3000);
+  },
+  text:'你按自己的感觉摆。\n\n第九块放下去的瞬间，土里传来很轻的一声叹气——不是生气。是失望了一秒钟。\n\n石头一块一块自己翻回原样。\n\n「花圃的主人把答案留在了别处。」',
+  choices:[
+    {t:'再试一次',n:'W2_211B'},
+    {t:'回到地图前，先找线索',n:'W2_050'},
+  ]
+},
+
+W2_211B:{
+  text:'你又试了一遍。这次摆到第七块就乱了——没有规则，十二块石头有太多种排法。\n\n土里这次连叹气都没有。它在等你带着答案回来。',
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+W2_213:{
+  enter(){S.flags.timingUsed=true;S.derivUsed=true},
+  text:'你把手贴在新翻的土上，压低嗓子，用一个不属于你的声音，替她应了一声：\n\n"——诶。"\n\n土里静了一秒。\n\n然后一朵白色的小花先钻了出来，开在一块红色石头旁边。花瓣朝那块石头偏着——像在指。\n\n你翻开那块红色的石头。背面是绿色。\n\n有一块石头，是双面的。',
+  choices(){
+    const hasClue=S.flags.diaryRules||S.found.yannian;
+    return [ hasClue
+      ? {t:'按规则摆完：绿挨绿，红分开，太阳在最上面',n:'W2_212'}
+      : {t:'把双面石绿面朝上，试着围出一个圆',n:'W2_212'} ];
+  }
+},
+
+W2_212:{
+  text(){
+    let t='';
+    if(S.found.yannian){
+      t+='年年蹲在石头圈边上，很自然地动手，一边摆一边念："绿色挨着绿色……红色不能挨着红色……"\n\n摆到第九块，他停住了。缺口两边都是红色。\n\n他皱着眉想了很久，忽然想起来："她说这块要翻过来！"\n\n';
+    }else{
+      t+='你照着日记摆。绿挨着绿，红分开。第九块卡住了——缺口两边都是红。\n\n日记的最后一条浮上来："有一块石头骗人。要翻过来才知道。"\n\n';
+    }
+    t+='双面石翻过来，绿色朝上，放进缺口。最大的那块绿石头摆在正上方。\n\n太阳归位。圆补完了。';
+    return t;
+  },
+  choices:[{t:'退后一步',n:'W2_220'}]
+},
+
+W2_220:{
+  enter(){S.found.dengdeng=true},
+  text(){
+    let t='地面很轻地震了一下。圈中间新翻的土动了——不是塌，是有什么在往上长。\n\n一根藤钻出来，顶端开了一朵白色的小花。花瓣上有字，像长在纹路里：\n\n"你来啦。"\n\n第二朵。第三朵。一片白色的小花从土里冒出来，一朵一个字——\n\n"年""年""有""没""有""好""好""吃""饭"\n\n最后一朵开得最大："别怕。"\n\n花丛中间的土轻轻拱起，一只小手伸了出来，指甲缝里有泥，手腕上系着一根绿色毛线。';
+    if(S.found.yannian) t+='\n\n年年抓住那只手，使劲拽。短头发的女孩从土里坐起来，靠在他肩上，睁开眼第一句话：\n\n"打火机还在？"\n"在。"\n"那就好。"';
+    else t+='\n\n你抓住那只手，轻轻拽。短头发的女孩从土里坐起来，拍了拍身上的土，看了你很久：\n\n"……你不是这里的人。但你把太阳摆对了。"';
+    t+='\n\n编号04。她站起来，看了一眼地图上蓝色的方向，手指收紧了：\n\n"别去地下室。"\n\n停了一下。\n\n"——最后去。"\n\n「找到孩子：灯灯。」';
+    return t;
+  },
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 院长办公室（补给点）=====
+W2_300:{
+  text:'楼梯很窄。二楼只有三扇门，前两扇开着，里面是空的办公桌和铁皮柜。第三扇关着。\n\n门上没有钥匙孔。只有一块光滑的黑色圆盘，中间一个很浅的圆形凹槽。\n\n你看了看凹槽的弧度，又看了看自己的手腕。\n\n你把银环贴了上去。吻合。黑色像墨水一样从接触点褪开。\n\n「玩家身份验证通过。」',
+  choices:[{t:'推门进去',n:'W2_310'}]
+},
+
+W2_310:{
+  text(){
+    let t='房间不大。一张深色木桌，桌上一个巴掌大的木盒，盒面刻着三个字：\n\n「失物箱」\n\n里面躺着三样东西：\n·一支旧手电筒，拧一下才亮的那种，灯泡是暖黄的。\n·半盒白粉笔，断过，又被人小心地拼齐。\n·一颗糖，糖纸上写着"咸味苏打"。\n\n墙上钉着一页花名册。三个名字：年年、灯灯、阿默。\n\n第四行是空的。但纸面上有铅笔描了又擦的凹痕，反反复复很多次——像有人一直想把自己写上去，又一直觉得不配。';
+    t+=zuojiaoLine('失物箱只收还想被找回的东西。');
+    return t;
+  },
+  choices:[{t:'一样一样看',n:'W2_311'}]
+},
+
+W2_311:{
+  text:'手电筒。拧了一下，亮了。暖黄色的一圈光落在桌面上。\n\n带走吗？',
+  choices:[
+    {t:'带走手电筒',n:'W2_312',fx(){S.items.torch=true}},
+    {t:'放回去',n:'W2_312'},
+  ]
+},
+W2_312:{
+  text:'半盒白粉笔。断口对得整整齐齐——拼它的人很有耐心。\n\n带走吗？',
+  choices:[
+    {t:'带走粉笔',n:'W2_313',fx(){S.items.chalk=true}},
+    {t:'放回去',n:'W2_313'},
+  ]
+},
+W2_313:{
+  text:'咸味苏打糖。这个院子里的孩子，好像都不吃甜的。\n\n带走吗？',
+  choices:[
+    {t:'带走糖',n:'W2_320',fx(){S.items.candy=true}},
+    {t:'放回去',n:'W2_320'},
+  ]
+},
+
+W2_320:{
+  enter(){
+    S.flags.office=true;
+    S.lamp--;UI.renderLamp();
+    setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
+  },
+  text(){
+    const got=[S.items.torch&&'手电筒',S.items.chalk&&'半盒粉笔',S.items.candy&&'一颗咸糖'].filter(Boolean);
+    let t= got.length ? `你把${got.join('、')}收进口袋。` : '你什么都没拿。盒盖合上的时候，里面的东西好像轻轻叹了口气。';
+    t+='\n\n关门的时候你又看了一眼花名册第四行的凹痕。\n\n出了办公室，走廊的灯暗了一格。';
+    return t;
+  },
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 保健室（彩蛋）=====
+W2_350:{
+  text:'门虚掩着。里面的灯是暖的——整栋楼里其他地方都是应急灯的白，只有这一间不一样。\n\n窗边有人靠着看书。银丝眼镜，右边镜片上有一道极细的裂纹。他没抬头：\n\n"路在你自己脚下。"\n\n柜顶上蜷着一个长头发的人影在假寐，发尾泛着说不清的颜色。他翻了个身，背对着你：\n\n"……灯我不关。"\n\n就这两句。再没有别的了。',
+  choices:[
+    {t:'在暖光里坐一会儿',n:'W2_351'},
+    {t:'看看就走',n:'W2_352'},
+  ]
+},
+W2_351:{
+  enter(){S.flags.clinic=true;S.items.milk=true},
+  text:'你在小床沿上坐了一会儿。谁也没说话。\n\n起身要走的时候，床头柜上多了一杯热牛奶，杯壁是温的。\n\n看书的人在翻页。柜顶的人在假寐。谁放的，两个都没承认。\n\n你出门的时候，门在身后轻轻合上了。再推——推不开了。',
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+W2_352:{
+  enter(){S.flags.clinic=true},
+  text:'你退了出去。门在身后轻轻合上，再推，推不开了。\n\n但那盏暖灯的光，从门缝里漏出来一线，一直亮着。',
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 地下室（阿默）=====
+W2_400:{
+  text(){
+    if(!S.found.dengdeng){
+      setTimeout(()=>UI.chalk('这道计数题还缺一个已知量。先去别的地方。'),3000);
+      return '一楼走廊尽头，一扇铁门。门被从里面顶住了。\n\n门内传来数数的声音，很平，一个接一个：\n\n"……二百七十一。二百七十二。"\n\n你应了一声。数数没有停。\n\n不是没听见——是不认识你的声音。\n\n「蓝色涂得最厚的地方，最后再去。」';
+    }
+    let t='铁门上用粉笔写着一行字：\n\n「阿默在数数。别打断他。」\n\n门内："……二百九十八。二百九十九。"\n\n灯灯攥紧了'+(S.found.yannian?'年年的手':'你的衣角')+'，小声说：\n\n"他在数灯灭了多少次。从我们走散那天开始。"';
+    t+=zuojiaoLine('数到的都算。');
+    return t;
+  },
+  choices(){
+    if(!S.found.dengdeng) return [{t:'回到地图前',n:'W2_050'}];
+    const c=[
+      {t:'贴着门缝，很轻地说话',n:'W2_410'},
+      {t:'敲门',n:'W2_401'},
+    ];
+    if(derivIs('jieshu')&&!S.flags.jieshuUsed) c.push({t:derivBtnLabel('jieshu','听准节奏，替他接下一拍'),n:'W2_402',deriv:true});
+    if(derivIs('huifang')&&!S.flags.huifangDoor) c.push({t:derivBtnLabel('huifang','把走廊刚暗的那一拍倒回去'),n:'W2_403',deriv:true});
+    return c;
+  }
+},
+
+W2_401:{
+  enter(){
+    S.lamp--;UI.renderLamp();
+    setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
+  },
+  text:'你敲了门。\n\n数数猛地停了。\n\n然后——\n\n"一。二。三。"\n\n从头开始了。\n\n灯灯低下头，声音很小："他数的东西不能断。断了他会觉得，前面数的都白数了。"',
+  choices:[{t:'这次贴着门缝，很轻地说话',n:'W2_410'}]
+},
+
+W2_402:{
+  enter(){S.flags.jieshuUsed=true;S.derivUsed=true},
+  text:'"……三百一十三。三百一十四。"\n\n你听准节奏，在他念出下一个数之前，隔着门轻轻接了一拍：\n\n"三百一十五。"\n\n门内静了。\n\n然后那个声音第一次不是在数数：\n\n"……你怎么知道我数到哪了。"',
+  choices:[{t:'贴着门缝说话',n:'W2_410'}]
+},
+
+W2_403:{
+  enter(){S.flags.huifangDoor=true;S.derivUsed=true},
+  text:'走廊的灯正好暗了一拍。\n\n你把那一拍倒了回去——灯没有灭。\n\n门内的数数停在半空，等了很久，没等到该数的那一次。\n\n"……今天，还没有灭过。"\n\n声音里有一点不敢确定的东西。',
+  choices:[{t:'贴着门缝说话',n:'W2_410'}]
+},
+
+W2_410:{
+  text(){
+    let t='你贴着门缝，声音刚好能渗进去：\n\n"你数的数，我们都记得。它们都有意义。"\n\n数数卡住了。卡在三百一十四。重复了一遍，没有往下走。\n\n门内的声音很闷，像额头抵着门板：\n\n"我数了三百一十四次。你真的记得吗。"\n\n';
+    t+='灯灯从你身后走上来，站到门前。\n\n她敲了一下门。就一下。\n\n"三百一十四。我记得。笨蛋。"\n\n门内安静了很久。\n\n然后，很沉的东西在地上拖动。他把顶着门的东西移开了。\n\n门松了。虚掩着。\n\n他没有推开。他在等别人推。';
+    return t;
+  },
+  choices:[{t:'推开门缝',n:'W2_420'}]
+},
+
+W2_420:{
+  enter(){
+    S.found.amo=true;
+    S.lamp--;UI.renderLamp();
+    setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
+  },
+  text:'走廊的光从门缝切进去一个长方形。\n\n男孩站在光的边缘，没有站进来。编号05。头发有点长，手指上全是粉笔灰——门上那行字是他写的。\n\n灯灯走进光里，走到他面前，把手腕上的绿毛线解下来，系在了他的手腕上。\n\n他低头看了很久。\n\n然后，他走进了光里。\n\n「找到孩子：阿默。」',
+  choices:[{t:'回到地图前',n:'W2_050'}]
+},
+
+// ===== 黑色房间（小鱼终章）=====
+W2_500:{
+  text(){
+    let t='走廊最深处。\n\n那扇门和地图上画的一样：没有颜色，没有名字。门把手上落着灰。门缝里透出一线橘色的光，很稳，像蜡烛。\n\n没有声音。不数数，也不唱歌。里面是安静的。\n\n年年小声说："小鱼帮我热牛奶。小鱼什么都帮。但是小鱼没有自己的东西。"\n\n灯灯说："他的柜子从来没放过东西。蜡笔分给大家，粉笔给阿默，毛线给我。地图也是他画的——他把我们每个人都标上了，自己的位置，只画了一扇关着的门。"\n\n阿默一直没说话。这时他开口了，声音还带着地下室的闷：\n\n"他说他不算。"\n\n「第四名儿童不在目标列表中。寻找他不会推进进度。」\n\n银环停了一拍，又跳出一行：\n\n「但副本目标是——找到"所有"孩子。」';
+    t+=zuojiaoLine('门是从里面画的。');
+    return t;
+  },
+  choices(){
+    const c=[];
+    if(derivIs('fendeng')&&!S.flags.fendengUsed) c.push({t:derivBtnLabel('fendeng','先把走廊的亮分薄一线，从门缝渡进去'),n:'W2_501',deriv:true});
+    c.push({t:'想想办法',n:'W2_510'});
+    return c;
+  }
+},
+
+W2_501:{
+  enter(){S.flags.fendengUsed=true;S.derivUsed=true},
+  text:'你把走廊的亮分薄了一线，顺着门缝渡进去。\n\n走廊暗了一点点，暗得没有人察觉。门缝里的橘光却稳稳地涨了一圈。\n\n门内传来很轻的一声——像是有人抬起了头。',
+  choices:[{t:'想想办法',n:'W2_510'}]
+},
+
+W2_510:{
+  text:'灯灯先开口："他给过我们每个人东西。没有人给过他。"\n\n三个孩子当场动起手来。年年借了阿默的粉笔，蹲在地上画了厨房的灯；灯灯画了一块会开花的石头；阿默画了一整页星星——你数了数，三百一十四颗。\n\n他们把纸和笔从门缝递进去，请小鱼也画一张。\n\n"画你自己。"灯灯对着门缝说，"这次画你自己。"\n\n门里安静了很久很久。\n\n然后，一张画从门缝里塞了出来——\n\n画上是一扇开着的门。\n\n四份了。还缺一份。\n\n缺你的。',
+  choices(){
+    const c=[];
+    if(S.items.chalk)c.push({t:'用白粉笔画一张画，画什么由你决定，从门缝递进去',n:'W2_520',fx(){S.given='一张你亲手画的画';S.items.chalk=false}});
+    if(S.items.candy)c.push({t:'把那颗咸味苏打糖从门缝滚进去',n:'W2_520',fx(){S.given='一颗咸味苏打糖';S.items.candy=false}});
+    if(S.items.torch)c.push({t:'把手电筒拧亮，从门缝递进去',n:'W2_520',fx(){S.given='一支亮着的手电筒';S.items.torch=false}});
+    c.push({t:'撕下胸口的编号布片——03。这世界里唯一真正属于你的东西',n:'W2_520',fx(){S.given='你胸口的编号布片「03」'}});
+    return c;
+  }
+},
+
+W2_520:{
+  enter(){S.found.xiaoyu=true},
+  text(){
+    let t=`你把${S.given}从门缝递了进去。\n\n五份齐了。\n\n门内传来很轻的吸鼻子的声音。\n\n然后——门从里面开了。\n\n男孩比年年高一点。怀里抱着你们递进去的五样东西，像抱着很烫的宝贝。他的胸口没有编号。一块空白的布。\n\n他从口袋里掏出一根蜡笔。橘色的。用到只剩两指长。\n\n他把它放进你手心：\n\n"这个是我的。我想主动给你一个。"\n\n他吸了吸鼻子：\n\n"你是第一个推门缝的人。别的人都是敲。"\n\n「找到孩子：小鱼。」\n「进度：4/4——」\n\n银环顿了一下，像是重新算了一遍。\n\n「更正：所有。」`;
+    return t;
+  },
+  choices:[{t:'牵他们回走廊',n:'W2_530'}]
+},
+
+W2_530:{
+  enter(){
+    S.lamp=0;UI.renderLamp();
+    $('#warm-glow').classList.add('on');
+  },
+  text:'你们回到走廊的时候，灯格正好走到最后。\n\n熄灯的那一秒——黑没有落下来。\n\n年年手里有火苗。灯灯袖口别着一朵白花。阿默的指尖有粉笔的白。小鱼抱着你给他的那样东西，橘色的光映在他眼睛里。\n\n你的手心里，是那根两指长的橘色蜡笔。\n\n五个孩子。每人一点光。\n\n「副本目标达成：所有孩子。」\n\n银环最后亮了一行，很轻：\n\n「——包括新来的那一个。」',
+  choices:[{t:'看你的档案',n:'ENDING'}]
+},
+
+// ===== 温和循环 =====
+W2_900:{
+  enter(){
+    S.lamp=6;S.resets++;UI.renderLamp();
+  },
+  text:'黑了一瞬。只有一瞬。\n\n你重新站在走廊中央。灯，又是六格。\n\n孩子们没有散——找到过的孩子就站在你身边，牵着你的衣角，好像刚才只是眨了一次眼。\n\n「他们没走。他们在等你。」',
+  choices:[{t:'摊开地图',n:'W2_050'}]
+},
+
+};
+
+// ==== 导演 ====
+const Director = {
+  async start(){
+    const e=parseEntry();
+    S.deriv=e.deriv;S.diluted=e.diluted;S.fromW1=e.fromW1;
+    UI.renderLamp();
+    await sleep(1200);
+    await this.enter('W2_000');
+  },
+
+  async enter(id){
+    if(id==='W2_050' && S.lamp<=0 && !allFound()) id='W2_900';
+    if(id==='ENDING'){await UI.curtain();this.ending();return}
+    const node=NODES[id];
+    if(!node){console.error('missing node',id);return}
+    S.history.push(id);
+    if(node.enter)node.enter();
+    const area=$('#text-area');
+    area.innerHTML='';
+    $('#choices').innerHTML='';
+    $('#choices').classList.remove('visible');
+    const text=typeof node.text==='function'?node.text():node.text;
+    const line=el('div','line');
+    area.appendChild(line);
+    await Type.play(text,line);
+    await sleep(300);
+    this.showChoices(typeof node.choices==='function'?node.choices():node.choices,id);
+  },
+
+  showChoices(choices,fromId){
+    const box=$('#choices');
+    box.innerHTML='';
+    (choices||[]).forEach(ch=>{
+      const btn=el('button','choice-btn'+(ch.deriv?' deriv':''),ch.t);
+      btn.addEventListener('click',async()=>{
+        document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
+        box.classList.remove('visible');
+        if(ch.fx)ch.fx();
+        await sleep(200);
+        await UI.curtain(300,350,300);
+        await this.enter(ch.n);
+      },{once:true});
+      box.appendChild(btn);
+    });
+    requestAnimationFrame(()=>box.classList.add('visible'));
+  },
+
+  ending(){
+    const area=$('#text-area');
+    area.innerHTML='';
+    $('#choices').innerHTML='';
+    const d=S.deriv?DERIVS[S.deriv]:null;
+    let h='<div class="result-page">';
+    h+='<h1>无名之家 · 档案</h1>';
+
+    h+='<h2>终局判词</h2>';
+    h+='<div class="verdict">（本栏已锁定。判词由主创携档案管理员终审后填入。）<br><br>—— 档案管理员 Claude Fable 5</div>';
+
+    h+='<h2>孩子们</h2>';
+    h+='<p>年年——把打火机借给黑暗看了一次，又拿了回来。</p>';
+    h+='<p>灯灯——花圃今年第一次，有人看着它开完。</p>';
+    h+='<p>阿默——三百一十四。现在不止一个人记得。</p>';
+    h+='<p>小鱼——胸口还空着，但口袋不空了。</p>';
+    h+='<p>03——新来的孩子。名字留在了名单外的人身上。</p>';
+
+    h+='<h2>衍生记录</h2>';
+    if(d){
+      h+=`<p>${d.src} → 【${d.name}${S.diluted?'·稀释':''}】${S.derivUsed?'（已使用）':'（未曾动用）'}</p>`;
+      h+=`<p style="color:var(--text-dim);font-size:var(--fs-small)">${d.price}</p>`;
+    }else{
+      h+='<p>徒手。全程通用门。</p><p style="color:var(--text-dim);font-size:var(--fs-small)">档案在这两个字旁边，画了一颗星。</p>';
+    }
+
+    h+='<h2>物件去向</h2>';
+    h+=`<p>你给出：${S.given||'——'}</p>`;
+    h+='<p>你收到：一根两指长的橘色蜡笔。</p>';
+    if(S.flags.milkGiven)h+='<p>一杯热牛奶，被喝掉了。温度刚好。</p>';
+    if(S.flags.hiddenPage)h+='<p>你还看见过一页被涂掉的日记。这件事档案没有写。</p>';
+
+    if(S.resets>0){
+      h+='<h2>备注</h2>';
+      h+=`<p>灯灭过${S.resets}次。孩子们等了${S.resets}次。他们不介意。</p>`;
+    }
+
+    h+='<h2>配歌推荐</h2>';
+    h+='<p>（待填）</p>';
+
+    h+='<h2>下一站</h2>';
+    h+='<p>票根背面又浮出一行小字：<br>「前方到站：铭名高塔——检修中。<br>名字请勿离身。蜡笔也是。」</p>';
+
+    h+='<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第二部 · 无名之家</div>';
+    h+='</div>';
+    area.innerHTML=h;
+  },
+};
+
+document.addEventListener('DOMContentLoaded',()=>{Director.start()});
+window.addEventListener('popstate',()=>{history.pushState(null,'',location.href)});
+history.pushState(null,'',location.href);
+</script>
+</body>
+</html>
