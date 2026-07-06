@@ -147,6 +147,19 @@ html,body{
   opacity:0.5;
 }
 /* character illustrations */
+#bg-illust{
+  position:fixed;inset:0;
+  z-index:0;
+  pointer-events:none;
+  background-repeat:no-repeat;
+  background-position:center 32%;
+  background-size:contain;
+  mix-blend-mode:screen;
+  filter:brightness(0.5);
+  opacity:0;
+  transition:opacity 2s ease;
+}
+#bg-illust.show{opacity:0.55}
 .illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
 .illust-wrap img{width:min(300px,72%);height:auto;mix-blend-mode:screen;opacity:0;animation:illustIn 1.6s ease forwards}
 @keyframes illustIn{to{opacity:1}}
@@ -270,6 +283,7 @@ body.light-on #warm-glow{opacity:0.25}
 <body>
 <div id="curtain"></div>
 <div id="warm-glow"></div>
+<div id="bg-illust"></div>
 <button id="sound-toggle" aria-label="sound">&#9834;</button>
 <audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
 <button id="light-toggle" aria-label="light">&#128161;</button>
@@ -631,6 +645,7 @@ nodes: {
 },
 
 'N03_stare_fifth': {
+  imgBefore: 'P3.jpg',
   text: '你盯着它。一秒、两秒、三秒——它的脸开始浮出一层灰，像是照片被错误曝光。你的眼睛发热。然后你看到了——墙上贴的那张"寝室公约"，其中有半句话的颜色，比另半句暗了一截。那半句，是假的。你站起来的时候，门口有一个影子闪过——太快了，只够你用余光确认那是一个人形的东西。',
   effects: [{ power: { awakened: true, id: 'zhishi', stage: 1 } }],
   choices: [
@@ -688,7 +703,7 @@ nodes: {
 },
 
 'N06_letter_open': {
-  imgBefore: 'P1.jpg',
+  bgIllust: 'P1.jpg',
   text: '"……新发的制服很合身吧？你一直怕冷，记得把领口扣死，别让它们看见你的锁骨……"\n\n信封里抖落出一枚干瘪的纽扣，型号与你身上这件一模一样。床铺上的被褥冰冷坚硬，没有折痕。',
   choices: [
     { id: 'c6lo_go', text: '把纽扣揣进口袋，继续走', next: 'N06_mid_hallway', effects: [] }
@@ -1045,7 +1060,7 @@ nodes: {
 
 // ===== ARCHIVIST LEAVES ARCHIVE ROOM (no-choice auto-advance) =====
 'N12_archivist_letters': {
-  imgBefore: 'P1.jpg',
+  bgIllust: 'P1.jpg',
   text: '它站在你身侧，没有呼吸，手指按在冰冷的信封上。"这些信，你觉得，该寄去哪儿？"',
   isSilentPause: true,
   autoNext: 'N12b_archivist_after',
@@ -1268,7 +1283,7 @@ nodes: {
 },
 
 'N_C403_letter_open': {
-  imgBefore: 'P1.jpg',
+  bgIllust: 'P1.jpg',
   text: '你拆开信封。里面只有一页薄纸，字迹端正，像是认真写的：\n\n「入秋了，这边的天气也凉得快，你那边怎么样？上次你说的那个事，现在有进展了吗？爸妈说周末可能过来一趟，问你有什么想吃的，我先帮你问问。」\n\n没有落款，没有收件人。寄信的人不知道，这封信已经不会被任何人拆开了——直到你。',
   choices: [
     { id: 'c403_lo_go', text: '把信放回信箱', next: 'N06_mid_hallway', effects: [] }
@@ -1327,7 +1342,7 @@ nodes: {
 },
 
 'N_C403_yanming_2': {
-  imgBefore: 'P2.jpg',
+  bgIllust: 'P2.jpg',
   topCaption: '谢谢。',
   text: { tokens: [
     { type: 'pause', ms: 800 },
@@ -1675,6 +1690,7 @@ const Director = {
     if (!node) { console.error('Node not found', nodeId); return; }
     if (node.effects) State.apply(node.effects);
 
+    $('#bg-illust').classList.remove('show');
     const wrap = $('#explore-wrap');
     $('#text-area').innerHTML = '';
     $('#choices').innerHTML = '';
@@ -1745,6 +1761,14 @@ const Director = {
     if (node.effects) State.apply(node.effects);
 
     if (!node.topCaption) $('#top-caption').classList.remove('show');
+
+    const bgIllust = $('#bg-illust');
+    if (node.bgIllust) {
+      bgIllust.style.backgroundImage = `url(${node.bgIllust})`;
+      bgIllust.classList.add('show');
+    } else {
+      bgIllust.classList.remove('show');
+    }
 
     if (node.svgBefore) {
       const svgDiv = el('div', '');
