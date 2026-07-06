@@ -160,6 +160,15 @@ html,body{
   transition:opacity 2s ease;
 }
 #bg-illust.show{opacity:0.55}
+#img-flash{
+  position:fixed;inset:0;
+  z-index:9000;
+  background:#000 center/contain no-repeat;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.25s ease;
+}
+#img-flash.on{opacity:1;transition:none}
 .illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
 .illust-wrap img{width:min(300px,72%);height:auto;mix-blend-mode:screen;opacity:0;animation:illustIn 1.6s ease forwards}
 @keyframes illustIn{to{opacity:1}}
@@ -284,6 +293,7 @@ body.light-on #warm-glow{opacity:0.25}
 <div id="curtain"></div>
 <div id="warm-glow"></div>
 <div id="bg-illust"></div>
+<div id="img-flash"></div>
 <button id="sound-toggle" aria-label="sound">&#9834;</button>
 <audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
 <button id="light-toggle" aria-label="light">&#128161;</button>
@@ -645,7 +655,7 @@ nodes: {
 },
 
 'N03_stare_fifth': {
-  imgBefore: 'P3.jpg',
+  flashImg: 'P3.jpg',
   text: '你盯着它。一秒、两秒、三秒——它的脸开始浮出一层灰，像是照片被错误曝光。你的眼睛发热。然后你看到了——墙上贴的那张"寝室公约"，其中有半句话的颜色，比另半句暗了一截。那半句，是假的。你站起来的时候，门口有一个影子闪过——太快了，只够你用余光确认那是一个人形的东西。',
   effects: [{ power: { awakened: true, id: 'zhishi', stage: 1 } }],
   choices: [
@@ -654,7 +664,7 @@ nodes: {
 },
 
 'N03_see_fifth': {
-  imgBefore: 'P3.jpg',
+  flashImg: 'P3.jpg',
   text: '第五个人的脸没有表情。不是"面无表情"，是表情本身不存在——像是有人在这张脸上只完成了五官的布局，没来得及写入任何数据。你注意到它身下的床单是干净的，没有任何触碰的痕迹。你走出门时，身后有人轻轻咳了一声——不是室友的声音。',
   choices: [
     { id: 'c3c_count', text: '继续数——这个算"人"吗', next: 'N04_hallway', effects: [{ attr: 'count_faces', op: 'inc' }, { attr: 'curiosity', op: 'inc' }] },
@@ -1291,7 +1301,7 @@ nodes: {
 },
 
 'N_C403_doorplate': {
-  imgBefore: 'P3.jpg',
+  flashImg: 'P3.jpg',
   text: 'C-403的门牌漆面明显比周围新。手指触碰，能感觉到下方有轻微的凸起，像是某种形状被厚重的油漆层层覆盖。你试着辨认——那是笔画，但涂层太厚，只摸得出横折和竖钩的轮廓。',
   choices: [
     { id: 'c403_door_go', text: '记住这件事', next: 'N11_hallway_continue', effects: [{ flag: 'c403_doorplate' }] }
@@ -1777,6 +1787,15 @@ const Director = {
       await sleep(300);
     }
 
+    if (node.flashImg) {
+      const flash = $('#img-flash');
+      flash.style.backgroundImage = `url(${node.flashImg})`;
+      flash.classList.add('on');
+      await sleep(550);
+      flash.classList.remove('on');
+      await sleep(300);
+    }
+
     if (node.imgBefore) {
       const imgDiv = el('div', 'illust-wrap');
       const img = document.createElement('img');
@@ -2090,6 +2109,7 @@ const Director = {
 
 // ==== BOOT ====
 document.addEventListener('DOMContentLoaded', () => {
+  ['P1.jpg', 'P2.jpg', 'P3.jpg'].forEach(src => { const i = new Image(); i.src = src; });
   Director.start();
 });
 
