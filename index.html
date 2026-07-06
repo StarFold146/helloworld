@@ -146,6 +146,26 @@ html,body{
   z-index:100;
   opacity:0.5;
 }
+/* character illustrations */
+.illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
+.illust-wrap img{width:min(300px,72%);height:auto;mix-blend-mode:screen;opacity:0;animation:illustIn 1.6s ease forwards}
+@keyframes illustIn{to{opacity:1}}
+#top-caption{
+  position:fixed;
+  top:calc(var(--safe-top) + 16px);
+  left:0;right:0;
+  text-align:center;
+  font-size:15px;
+  letter-spacing:0.45em;
+  text-indent:0.45em;
+  color:#c8c0b0;
+  text-shadow:0 0 8px rgba(200,192,176,0.35);
+  opacity:0;
+  transition:opacity 2.4s ease;
+  pointer-events:none;
+  z-index:98;
+}
+#top-caption.show{opacity:0.9}
 .result-page{padding:20px 0}
 .result-page h1{font-size:var(--fs-title);color:var(--text-main);margin-bottom:0.5em;font-weight:600}
 .result-page h2{font-size:var(--fs-body);color:var(--text-dim);margin:1.5em 0 0.5em;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:6px}
@@ -254,6 +274,7 @@ body.light-on #warm-glow{opacity:0.25}
 <audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
 <button id="light-toggle" aria-label="light">&#128161;</button>
 <div id="chalk-marks"></div>
+<div id="top-caption"></div>
 <div id="stage">
   <div id="text-area"></div>
   <div id="explore-wrap" style="display:none"></div>
@@ -618,6 +639,7 @@ nodes: {
 },
 
 'N03_see_fifth': {
+  imgBefore: 'P3.jpg',
   text: '第五个人的脸没有表情。不是"面无表情"，是表情本身不存在——像是有人在这张脸上只完成了五官的布局，没来得及写入任何数据。你注意到它身下的床单是干净的，没有任何触碰的痕迹。你走出门时，身后有人轻轻咳了一声——不是室友的声音。',
   choices: [
     { id: 'c3c_count', text: '继续数——这个算"人"吗', next: 'N04_hallway', effects: [{ attr: 'count_faces', op: 'inc' }, { attr: 'curiosity', op: 'inc' }] },
@@ -666,6 +688,7 @@ nodes: {
 },
 
 'N06_letter_open': {
+  imgBefore: 'P1.jpg',
   text: '"……新发的制服很合身吧？你一直怕冷，记得把领口扣死，别让它们看见你的锁骨……"\n\n信封里抖落出一枚干瘪的纽扣，型号与你身上这件一模一样。床铺上的被褥冰冷坚硬，没有折痕。',
   choices: [
     { id: 'c6lo_go', text: '把纽扣揣进口袋，继续走', next: 'N06_mid_hallway', effects: [] }
@@ -1022,6 +1045,7 @@ nodes: {
 
 // ===== ARCHIVIST LEAVES ARCHIVE ROOM (no-choice auto-advance) =====
 'N12_archivist_letters': {
+  imgBefore: 'P1.jpg',
   text: '它站在你身侧，没有呼吸，手指按在冰冷的信封上。"这些信，你觉得，该寄去哪儿？"',
   isSilentPause: true,
   autoNext: 'N12b_archivist_after',
@@ -1244,6 +1268,7 @@ nodes: {
 },
 
 'N_C403_letter_open': {
+  imgBefore: 'P1.jpg',
   text: '你拆开信封。里面只有一页薄纸，字迹端正，像是认真写的：\n\n「入秋了，这边的天气也凉得快，你那边怎么样？上次你说的那个事，现在有进展了吗？爸妈说周末可能过来一趟，问你有什么想吃的，我先帮你问问。」\n\n没有落款，没有收件人。寄信的人不知道，这封信已经不会被任何人拆开了——直到你。',
   choices: [
     { id: 'c403_lo_go', text: '把信放回信箱', next: 'N06_mid_hallway', effects: [] }
@@ -1251,6 +1276,7 @@ nodes: {
 },
 
 'N_C403_doorplate': {
+  imgBefore: 'P3.jpg',
   text: 'C-403的门牌漆面明显比周围新。手指触碰，能感觉到下方有轻微的凸起，像是某种形状被厚重的油漆层层覆盖。你试着辨认——那是笔画，但涂层太厚，只摸得出横折和竖钩的轮廓。',
   choices: [
     { id: 'c403_door_go', text: '记住这件事', next: 'N11_hallway_continue', effects: [{ flag: 'c403_doorplate' }] }
@@ -1301,6 +1327,8 @@ nodes: {
 },
 
 'N_C403_yanming_2': {
+  imgBefore: 'P2.jpg',
+  topCaption: '谢谢。',
   text: { tokens: [
     { type: 'pause', ms: 800 },
     { type: 'text', content: '但总有人在念。', speed: 80 },
@@ -1716,11 +1744,23 @@ const Director = {
 
     if (node.effects) State.apply(node.effects);
 
+    if (!node.topCaption) $('#top-caption').classList.remove('show');
+
     if (node.svgBefore) {
       const svgDiv = el('div', '');
       svgDiv.innerHTML = node.svgBefore;
       area.appendChild(svgDiv);
       await sleep(300);
+    }
+
+    if (node.imgBefore) {
+      const imgDiv = el('div', 'illust-wrap');
+      const img = document.createElement('img');
+      img.src = node.imgBefore;
+      img.alt = '';
+      imgDiv.appendChild(img);
+      area.appendChild(imgDiv);
+      await sleep(600);
     }
 
     // Auto-close warm glow when leaving convenience store area
@@ -1790,6 +1830,12 @@ const Director = {
       const lineEl = el('div', 'line');
       area.appendChild(lineEl);
       await Typewriter.playLine([{ type: 'text', content: text }], lineEl, 38);
+    }
+
+    if (node.topCaption) {
+      const tc = $('#top-caption');
+      tc.textContent = node.topCaption;
+      tc.classList.add('show');
     }
 
     // chalk mark: delayed hint at page border
