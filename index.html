@@ -207,6 +207,16 @@ html,body{
   color:var(--text-dim);
   font-size:var(--fs-small);
 }
+.station-row{display:flex;flex-direction:column;gap:10px;margin:1em 0}
+a.station-btn,div.station-btn{
+  display:block;padding:14px 18px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-panel);color:var(--text-main);
+  text-decoration:none;letter-spacing:0.05em;line-height:1.6;
+}
+a.station-btn{border-color:#3a4a42}
+a.station-btn:active{background:var(--border)}
+div.station-btn{opacity:0.45;color:var(--text-dim)}
 .result-page .footer{
   margin-top:3em;
   padding-top:1em;
@@ -1984,6 +1994,19 @@ const Director = {
     html += '<h2>随票附赠</h2>';
     html += '<p>票根背面浮着一行极淡的小字，像被水洗过很多遍：<br>「本次列车沿途停靠：留名 · 无名之家 · 铭名高塔 · 千阶问名 ……终点站字迹涂改不清。<br>凡随身带着名字的乘客，均可在任意一站下车走走。名字请勿离身。」</p>';
 
+    html += '<h2>站台窗口</h2>';
+    const w2p = this.w2Param();
+    if (w2p) {
+      html += '<p>车窗外的雾气散开一角，站牌一块一块地亮了起来。</p>';
+      html += '<div class="station-row">';
+      html += `<a class="station-btn" href="world2/index.html#p=${w2p}&from=w1">无名之家 —— 车门已开，可以下车走走</a>`;
+      html += '<div class="station-btn">铭名高塔 —— 检修中</div>';
+      html += '<div class="station-btn">千阶问名 —— 检修中</div>';
+      html += '</div>';
+    } else {
+      html += '<p>站牌亮了，车门却没有开。广播的声音一如既往地平稳：<br>「未检得随身异能，本站不停。请留在座位上，雾里还有下一班。」</p>';
+    }
+
     html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
 
     html += '</div>';
@@ -2047,6 +2070,16 @@ const Director = {
       ${code ? `<text x="298" y="126" font-size="8" fill="#4a4a46" stroke="none" text-anchor="end">${code}</text>` : ''}
       <circle cx="250" cy="30" r="8" stroke="#5a5d68"/>
     </svg></div>`;
+  },
+
+  w2Param() {
+    const p = State.current.power;
+    if (!p.awakened) return null;
+    if (p.id === 'gacha_special') return 'gacha_special';
+    if (p.id === 'gacha') return 'gacha';
+    if (p.id && p.path && ['zhishi','daida','zhefan'].includes(p.id)) return p.id + '_' + p.path;
+    if (['zhishi','daida','zhefan'].includes(p.id)) return p.id;
+    return 'gacha';
   },
 
   resolveEnding() {

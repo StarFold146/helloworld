@@ -52,7 +52,8 @@ html,body{
 .line .cursor{display:inline;animation:blink 1s step-end infinite;color:var(--text-dim)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .ring{color:var(--ring);letter-spacing:0.05em}
-.blackboard{color:#c8cfc0;font-family:"Courier New",monospace}
+.scene-svg{margin:0 0 1em}
+.scene-svg svg{width:100%;height:auto;display:block}
 #choices{margin-top:2em;opacity:0;transition:opacity 0.4s ease}
 #choices.visible{opacity:1}
 .choice-btn{
@@ -89,20 +90,35 @@ html,body{
   background:radial-gradient(ellipse at 50% 100%, rgba(208,138,62,0.30), transparent 60%);
 }
 #warm-glow.on{opacity:1}
+#bg-illust{
+  position:fixed;inset:0;
+  z-index:0;
+  pointer-events:none;
+  background-repeat:no-repeat;
+  background-position:center 32%;
+  background-size:contain;
+  mix-blend-mode:screen;
+  filter:brightness(0.5);
+  opacity:0;
+  transition:opacity 2s ease;
+}
+#bg-illust.show{opacity:0.55}
 .result-page{padding:20px 0}
 .result-page h1{font-size:var(--fs-title);color:var(--text-main);margin-bottom:0.5em;font-weight:600}
 .result-page h2{font-size:var(--fs-body);color:var(--text-dim);margin:1.5em 0 0.5em;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:6px}
 .result-page p{margin-bottom:0.6em;color:var(--text-rule)}
 .result-page .verdict{
   margin:1.5em 0;padding:16px;border-left:3px solid #4a4438;background:var(--bg-panel);
-  border-radius:0 8px 8px 0;line-height:1.8;color:var(--text-dim);font-style:italic;
+  border-radius:0 8px 8px 0;line-height:1.8;
 }
+.result-page .verdict.locked{color:var(--text-dim);font-style:italic}
 .result-page .footer{margin-top:3em;padding-top:1em;border-top:1px solid var(--border);color:var(--text-dim);font-size:var(--fs-small);text-align:center}
 </style>
 </head>
 <body>
 <div id="curtain"></div>
 <div id="warm-glow"></div>
+<div id="bg-illust"></div>
 <div id="lamp-hud"></div>
 <div id="toast"></div>
 <div id="chalk-marks"></div>
@@ -117,15 +133,111 @@ function $(s){return document.querySelector(s)}
 function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x)e.textContent=x;return e}
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+// ==== 场景线稿 ====
+const SVG_CORRIDOR = `<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<rect x="8" y="8" width="384" height="224" stroke="#252b26"/>
+<line x1="8" y1="170" x2="392" y2="170"/>
+<line x1="8" y1="118" x2="392" y2="118" stroke="#39443b" stroke-width="0.8"/>
+<path d="M60 170 L120 232 M140 170 L180 232 M220 170 L240 232 M300 170 L320 232" stroke="#2c332d" stroke-width="0.8"/>
+<path d="M100 232 L160 170 M200 232 L250 170 M300 232 L340 170" stroke="#2c332d" stroke-width="0.8"/>
+<rect x="120" y="72" width="56" height="98" stroke="#5a6058"/>
+<circle cx="168" cy="122" r="3" stroke="#8a7648"/>
+<rect x="230" y="72" width="56" height="98" stroke="#454c44"/>
+<circle cx="238" cy="122" r="2.4" fill="#141715" stroke="#33382f"/>
+<rect x="52" y="80" width="30" height="24" stroke="#39443b"/>
+<path d="M58 98 Q67 84 76 98" stroke="#39443b" stroke-width="0.8"/>
+<circle cx="67" cy="88" r="4" stroke="#4a4438" stroke-width="0.8"/>
+</svg>`;
+
+const SVG_LOCKERS = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<line x1="20" y1="170" x2="380" y2="170"/>
+<rect x="40" y="60" width="60" height="110"/><rect x="108" y="60" width="60" height="110"/><rect x="176" y="60" width="60" height="110"/><rect x="244" y="60" width="60" height="110"/><rect x="312" y="60" width="60" height="110"/>
+<rect x="52" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="120" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="188" y="74" width="36" height="14" stroke="#6a6f66"/><rect x="256" y="74" width="36" height="14" stroke="#6a6f66"/>
+<path d="M324 74 L336 74 L330 84 Z" stroke="#5a5044"/>
+<rect x="322" y="118" width="40" height="20" stroke="#39443b"/>
+<path d="M326 128 h6 M336 124 v8 M346 128 h8" stroke="#5a5044" stroke-width="0.9"/>
+</svg>`;
+
+const SVG_MAP = `<svg viewBox="0 0 400 230" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.1">
+<rect x="46" y="20" width="308" height="190" rx="3" transform="rotate(-2 200 115)" stroke="#5a6058"/>
+<rect x="86" y="58" width="40" height="30" stroke="#7a4038"/><path d="M96 74 q6 8 14 0" stroke="#7a4038" stroke-width="0.9"/><circle cx="99" cy="68" r="1.4" fill="#7a4038" stroke="none"/><circle cx="109" cy="68" r="1.4" fill="#7a4038" stroke="none"/>
+<circle cx="292" cy="76" r="15" stroke="#48603f"/><circle cx="292" cy="76" r="8" stroke="#48603f" stroke-width="0.8"/><circle cx="292" cy="76" r="2.6" stroke="#48603f" stroke-width="0.8"/>
+<rect x="168" y="52" width="40" height="28" stroke="#7a6a3b"/><rect x="182" y="60" width="12" height="10" stroke="#7a6a3b" stroke-width="0.9"/><circle cx="188" cy="70" r="1.6" stroke="#7a6a3b" stroke-width="0.8"/>
+<rect x="120" y="140" width="52" height="40" stroke="#3b4a6a" stroke-width="2.4" opacity="0.85"/><rect x="124" y="144" width="44" height="32" stroke="#3b4a6a" stroke-width="1.6" opacity="0.6"/>
+<rect x="252" y="146" width="34" height="40" stroke="#23241f" stroke-width="2"/><line x1="269" y1="150" x2="269" y2="182" stroke="#23241f" stroke-width="1.6"/>
+</svg>`;
+
+const SVG_OVEN = `<svg viewBox="0 0 400 210" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<line x1="16" y1="70" x2="384" y2="70"/>
+<line x1="16" y1="196" x2="384" y2="196" stroke="#2c332d"/>
+<rect x="120" y="86" width="160" height="100" rx="4"/>
+<rect x="136" y="102" width="128" height="62" rx="3" stroke="#23241f" fill="#0d0f0d"/>
+<circle cx="200" cy="133" r="4" fill="#d08a3e" stroke="none" opacity="0.85"/>
+<circle cx="200" cy="133" r="9" stroke="#d08a3e" stroke-width="0.6" opacity="0.4"/>
+<line x1="150" y1="176" x2="250" y2="176" stroke="#39443b"/>
+<rect x="290" y="20" width="80" height="50" stroke="#39443b" stroke-width="0.9"/>
+<path d="M296 32 h20 M296 42 h28 M296 52 h16" stroke="#39443b" stroke-width="0.8"/>
+</svg>`;
+
+const SVG_GARDEN = `<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<line x1="10" y1="200" x2="390" y2="200" stroke="#2c332d"/>
+<path d="M200 200 L200 120 M200 132 Q150 96 118 108 M200 128 Q250 92 286 106 M200 140 Q168 112 148 120 M200 138 Q238 110 262 118" stroke="#5a6058"/>
+<ellipse cx="200" cy="196" rx="52" ry="14" stroke="#48603f" stroke-width="0.9"/>
+<circle cx="152" cy="192" r="4" stroke="#48603f"/><circle cx="168" cy="200" r="4" stroke="#48603f"/><circle cx="188" cy="205" r="4" stroke="#48603f"/><circle cx="212" cy="205" r="4" stroke="#48603f"/><circle cx="232" cy="200" r="4" stroke="#48603f"/><circle cx="248" cy="192" r="4" stroke="#48603f"/>
+<circle cx="160" cy="184" r="3.4" stroke="#6a3a34"/><circle cx="240" cy="184" r="3.4" stroke="#6a3a34"/><circle cx="200" cy="208" r="3.4" stroke="#6a3a34"/>
+<circle cx="200" cy="181" r="5" stroke="#48603f" stroke-width="1.6"/>
+<rect x="252" y="152" width="34" height="22" transform="rotate(6 269 163)" stroke="#5a5044" stroke-width="0.9"/>
+<path d="M10 40 q30 18 0 36 M390 60 q-28 16 0 34" stroke="#39443b" stroke-width="0.8"/>
+</svg>`;
+
+const SVG_BOX = `<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<line x1="30" y1="150" x2="370" y2="150"/>
+<line x1="52" y1="150" x2="46" y2="192" stroke="#39443b"/><line x1="348" y1="150" x2="354" y2="192" stroke="#39443b"/>
+<rect x="150" y="96" width="100" height="54" rx="3"/>
+<path d="M150 108 L250 108" stroke="#5a6058"/>
+<path d="M150 96 L166 78 L266 78 L250 96" stroke="#5a6058"/>
+<rect x="182" y="118" width="36" height="16" stroke="#5a5044" stroke-width="0.9"/>
+<rect x="286" y="60" width="60" height="90" stroke="#39443b" stroke-width="0.9"/>
+<path d="M292 76 h30 M292 92 h34 M292 108 h26" stroke="#39443b" stroke-width="0.8"/>
+<path d="M292 124 h22" stroke="#5a5044" stroke-width="0.8" stroke-dasharray="2 3"/>
+</svg>`;
+
+const SVG_IRONDOOR = `<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<rect x="140" y="30" width="120" height="200" stroke="#454c44"/>
+<line x1="140" y1="96" x2="260" y2="96" stroke="#39443b"/><line x1="140" y1="164" x2="260" y2="164" stroke="#39443b"/>
+<circle cx="248" cy="132" r="3" stroke="#39443b"/>
+<path d="M152 52 h44 M152 64 h64 M152 76 h36" stroke="#8a8676" stroke-width="0.9" opacity="0.7"/>
+<path d="M100 230 L300 230" stroke="#2c332d"/>
+<path d="M150 236 q50 8 100 0" stroke="#23241f" stroke-width="0.8"/>
+</svg>`;
+
+const SVG_BLACKDOOR = `<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.2">
+<rect x="150" y="28" width="100" height="200" stroke="#33382f"/>
+<circle cx="238" cy="130" r="3.4" stroke="#454c44"/>
+<path d="M238 130 q4 3 3 8" stroke="#33382f" stroke-width="0.6"/>
+<line x1="152" y1="226" x2="248" y2="226" stroke="#d08a3e" stroke-width="1.6" opacity="0.8"/>
+<line x1="158" y1="223" x2="242" y2="223" stroke="#d08a3e" stroke-width="0.6" opacity="0.35"/>
+<path d="M60 228 L340 228" stroke="#2c332d"/>
+</svg>`;
+
+const SVG_FIVELIGHTS = `<svg viewBox="0 0 400 160" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4f5a52" stroke-width="1.1">
+<path d="M76 96 q-6 -16 6 -26 q10 8 4 26 Z" stroke="#d08a3e" opacity="0.9"/>
+<circle cx="148" cy="86" r="7" stroke="#b8c0b2"/><circle cx="148" cy="86" r="2.2" stroke="#b8c0b2" stroke-width="0.8"/><path d="M141 81 q7 -8 14 0 M141 91 q7 8 14 0" stroke="#b8c0b2" stroke-width="0.7"/>
+<rect x="212" y="78" width="20" height="7" rx="2" transform="rotate(-18 222 82)" stroke="#d5d2c6"/>
+<path d="M288 92 l16 -10 M304 82 l26 -6 26 14 -26 6 Z" stroke="#cfc39a" opacity="0.85"/>
+<rect x="188" y="120" width="26" height="9" rx="2" transform="rotate(8 201 124)" stroke="#d08a3e" stroke-width="1.4"/>
+<line x1="20" y1="150" x2="380" y2="150" stroke="#23241f"/>
+</svg>`;
+
 // ==== 异能衍生（零后端：URL hash 分流）====
 const DERIVS = {
-  kanzhu:  { name:'看住',   src:'直视·石化路', desc:'盯住一点将灭的火七秒，它今晚就不会灭。', price:'你替火醒着，梦里就少了一段你自己的光。' },
-  xianying:{ name:'显影',   src:'直视·透写路', desc:'看出纸背没写出来的那一笔。',             price:'你看见了不给你看的那页，从此合不拢书。' },
-  timing:  { name:'替名',   src:'代答·冒名路', desc:'用不属于自己的声音，替一个名字应一声。', price:'土记住了那声应答的嗓音，不是你的。' },
-  jieshu:  { name:'接数',   src:'代答·执行路', desc:'抢在下一个数字之前，替人数一拍。',       price:'那一拍从此归你数，忘了也归你。' },
-  huifang: { name:'回放',   src:'折返·拖延路', desc:'把刚过去的一拍倒回来再看一遍。',         price:'被倒回的那一拍，会在别处补灭。' },
-  fendeng: { name:'分灯',   src:'折返·均摊路', desc:'把亮分薄一线，渡进暗房。',               price:'每盏灯都欠你一线，你欠每间暗房一线。' },
-  zuojiao: { name:'左脚先进', src:'扭蛋·规格外「不合脚的左蝉翼」', desc:'从没被登记的那一侧进门，看见门内侧的字。', price:'规则没登记这只脚，也就不接它回来。' },
+  kanzhu:  { name:'看住',   src:'直视·石化路', family:'Gaze',    desc:'盯住一点将灭的火七秒，它今晚就不会灭。', price:'你替火醒着，梦里就少了一段你自己的光。' },
+  xianying:{ name:'显影',   src:'直视·透写路', family:'Gaze',    desc:'看出纸背没写出来的那一笔。',             price:'你看见了不给你看的那页，从此合不拢书。' },
+  timing:  { name:'替名',   src:'代答·冒名路', family:'Voice',   desc:'用不属于自己的声音，替一个名字应一声。', price:'土记住了那声应答的嗓音，不是你的。' },
+  jieshu:  { name:'接数',   src:'代答·执行路', family:'Voice',   desc:'抢在下一个数字之前，替人数一拍。',       price:'那一拍从此归你数，忘了也归你。' },
+  huifang: { name:'回放',   src:'折返·拖延路', family:'Rewind',  desc:'把刚过去的一拍倒回来再看一遍。',         price:'被倒回的那一拍，会在别处补灭。' },
+  fendeng: { name:'分灯',   src:'折返·均摊路', family:'Rewind',  desc:'把亮分薄一线，渡进暗房。',               price:'每盏灯都欠你一线，你欠每间暗房一线。' },
+  zuojiao: { name:'左脚先进', src:'扭蛋·规格外「不合脚的左蝉翼」', family:'Fortune', desc:'从没被登记的那一侧进门，看见门内侧的字。', price:'规则没登记这只脚，也就不接它回来。' },
 };
 const PARAM_MAP = {
   zhishi_petrify:'kanzhu', zhishi_rewrite:'xianying',
@@ -133,28 +245,48 @@ const PARAM_MAP = {
   zhefan_delay:'huifang', zhefan_share:'fendeng',
   gacha_special:'zuojiao',
 };
+const BARE_FAMILY = { zhishi:['kanzhu','xianying'], daida:['timing','jieshu'], zhefan:['huifang','fendeng'] };
 function parseEntry(){
   try{
     const h = new URLSearchParams(location.hash.replace(/^#/,''));
     const p = (h.get('p')||'').toLowerCase();
-    if (PARAM_MAP[p]) return { deriv: PARAM_MAP[p], diluted:false, fromW1: h.get('from')==='w1' };
+    const fromW1 = h.get('from')==='w1';
+    if (PARAM_MAP[p]) return { deriv: PARAM_MAP[p], diluted:false, family: p==='gacha_special'?'Fortune':DERIVS[PARAM_MAP[p]].family, fromW1 };
+    if (BARE_FAMILY[p]) {
+      const pool = BARE_FAMILY[p];
+      const d = pool[Math.floor(Math.random()*pool.length)];
+      return { deriv:d, diluted:true, family:DERIVS[d].family, fromW1 };
+    }
     if (p === 'gacha') {
-      const pool = ['kanzhu','xianying','timing','jieshu','huifang','fendeng'];
-      return { deriv: pool[Math.floor(Math.random()*pool.length)], diluted:true, fromW1: h.get('from')==='w1' };
+      const pool = Object.keys(BARE_FAMILY).flatMap(k=>BARE_FAMILY[k]);
+      const d = pool[Math.floor(Math.random()*pool.length)];
+      return { deriv:d, diluted:true, family:'Fortune', fromW1 };
     }
   }catch(e){}
-  return { deriv:null, diluted:false, fromW1:false };
+  return { deriv:null, diluted:false, family:'Passage', fromW1:false };
 }
+
+// ==== 判词与配歌（锁定·待主创终审填入。为 null 时结果页显示占位）====
+// 判词主文按「你给出的那样东西」分四条；附加缀语两条。
+const VERDICTS = {
+  draw:  null,   // 给出：一张亲手画的画
+  candy: null,   // 给出：咸味苏打糖
+  torch: null,   // 给出：亮着的手电筒
+  badge: null,   // 给出：编号布片「03」
+  handsFree: null, // 附加缀语：徒手（Passage 无衍生）通关
+  dimmed:    null, // 附加缀语：灯灭过（resets ≥ 1）
+};
+const SONGS = { Gaze:null, Voice:null, Rewind:null, Fortune:null, Passage:null };
 
 // ==== 状态 ====
 const S = {
   lamp:6,
-  deriv:null, diluted:false, fromW1:false,
+  deriv:null, diluted:false, family:'Passage', fromW1:false,
   derivUsed:false,
   found:{yannian:false,dengdeng:false,amo:false,xiaoyu:false},
   items:{torch:false,chalk:false,candy:false,milk:false},
   flags:{},
-  given:null,
+  given:null, givenType:null,
   history:[],
   resets:0,
   hubVisited:false,
@@ -190,7 +322,7 @@ const UI = {
   },
 };
 
-// 打字机：段落式，「」起始段落染成银环色，␣B前缀段落为黑板体
+// 打字机：段落式，「」起始段落染成银环色
 const Type = {
   skipFlag:false,
   async play(text,container){
@@ -200,20 +332,19 @@ const Type = {
     const render=(cur,done)=>{container.innerHTML=html+cur+(done?'':'<span class="cursor">▌</span>')};
     for(let pi=0;pi<paras.length;pi++){
       const p=paras[pi];
-      const cls = p.startsWith('「') ? 'ring' : (p.startsWith('␣B') ? 'blackboard' : '');
-      const body = p.startsWith('␣B') ? p.slice(2) : p;
+      const cls = p.startsWith('「') ? 'ring' : '';
       let cur='';
       const open = cls?`<span class="${cls}">`:'';
       const close = cls?'</span>':'';
-      if(this.skipFlag){ html+=open+esc(body)+close+'\n'; continue; }
-      for(const ch of body){
+      if(this.skipFlag){ html+=open+esc(p)+close+'\n'; continue; }
+      for(const ch of p){
         cur+=ch;
         render(open+esc(cur)+close,false);
         if(!this.skipFlag) await sleep(28);
       }
-      html+=open+esc(body)+close+'\n';
+      html+=open+esc(p)+close+'\n';
       render('',false);
-      if(!this.skipFlag && body.trim()) await sleep(140);
+      if(!this.skipFlag && p.trim()) await sleep(140);
     }
     render('',true);
   },
@@ -230,20 +361,21 @@ function derivBtnLabel(k,label){
 function zuojiaoLine(line){
   if(!derivIs('zuojiao')) return '';
   S.derivUsed=true;
-  return `\n\n（你左脚先落了地。门内侧浮出一行只给你看的字：「${line}」）`;
+  return `\n\n（你左脚先落了地。门的内侧浮出一行只给你看的字：「${line}」）`;
 }
 
 const NODES = {
 
 W2_000:{
+  svg:SVG_CORRIDOR,
   text(){
     let t='没有过渡。\n';
     t+= S.fromW1
-      ? '上一秒你还坐在末班车靠窗的位置，票根还捏在手里。下一秒，所有光同时熄灭又亮起。'
-      : '上一秒你还在别处。下一秒，所有光同时熄灭又亮起。';
-    t+='\n\n你站在一条走廊中央。脚下是开裂的黑白棋盘格地砖，空气里有很淡的消毒水味。两侧的墙刷着机构特有的浅绿色，一米二以下换成发黄的白。墙上每隔三米挂一幅蜡笔画：太阳、房子、手拉手的小人。画框是铁的，钉死在墙里。';
-    t+='\n\n你低头看自己。白色长袖，灰色长裤，左胸口一个编号：03。';
-    t+='\n\n右手腕上多了一圈很细的银环，贴着皮肤，微凉。环面浮出小字——';
+      ? '上一秒你还坐在末班车靠窗的位置，票根还捏在手里没有放开。下一秒，所有的光同时熄灭，又同时亮起。'
+      : '上一秒你还在别的地方。下一秒，所有的光同时熄灭，又同时亮起。';
+    t+='\n\n你站在一条走廊的正中央。脚下是开裂的黑白棋盘格地砖，空气里飘着一股很淡的消毒水味。两侧的墙刷着机构特有的浅绿色，到一米二的高度换成发黄的白。墙上每隔三米挂着一幅蜡笔画，画的是太阳、房子和手拉手的小人，画框全是铁的，钉死在墙里，取不下来。';
+    t+='\n\n你低头看了看自己：白色长袖，灰色长裤，左胸口印着一个编号——03。';
+    t+='\n\n右手腕上多了一圈很细的银环，贴着皮肤，带着一点微凉的温度。环面浮出小字——';
     t+='\n「副本目标：熄灯前，找到所有孩子。」\n「走廊的灯：还剩六格。」';
     return t;
   },
@@ -255,11 +387,11 @@ W2_010:{
     let t='「报上你随身带来的东西。」\n\n';
     if(S.deriv){
       const d=DERIVS[S.deriv];
-      t+='你还没开口，银环自己读出了答案——像是在你上车那一刻，就已经登记过了。\n';
+      t+='你还没来得及开口，银环就自己读出了答案——像是在你上车的那一刻，就已经悄悄登记过了。\n';
       t+=`「登记确认：${d.src}。」\n「本院衍生：【${d.name}${S.diluted?'·稀释':''}】——${d.desc}」`;
-      if(S.diluted) t+='\n\n那行字比正常的淡一截，像是借来的。';
+      if(S.diluted) t+='\n\n那行字的颜色比正常的淡了一截，握在手里像是借来的东西。';
     }else{
-      t+='你摸遍了口袋。什么都没有。\n你只有一个名字。\n\n「登记确认：新来的孩子。」\n「通用门全程开放。失物箱会照顾你。」';
+      t+='你把每一个口袋都摸了一遍，什么都没有摸到。\n你随身带来的，只有一个名字。\n\n「登记确认：新来的孩子。」\n「通用门全程开放。失物箱会照顾你。」';
     }
     return t;
   },
@@ -267,7 +399,8 @@ W2_010:{
 },
 
 W2_020:{
-  text:'走廊尽头有两扇门。左边那扇漆面完好；右边那扇缺了门把手，只剩一个锁孔。\n\n很远的地方，隔了好几堵墙，有个孩子在唱歌。调子很慢，像数数的童谣。旋律走了三句就停，然后从头开始。走三句，停。从头。',
+  svg:SVG_CORRIDOR,
+  text:'走廊尽头有两扇门。左边那扇漆面完好，黄铜把手擦得发亮；右边那扇缺了门把手，只剩下一个黑洞一样的锁孔。\n\n很远的地方，隔着好几堵墙，有个孩子在唱歌。调子很慢，像是用来数数的那种童谣。旋律走了三句就停下来，然后从头开始，像一张划伤了的旧唱片。',
   choices(){
     const c=[
       {t:'推左边漆面完好的门（活动室）',n:'W2_030'},
@@ -282,7 +415,7 @@ W2_020:{
 
 W2_021:{
   enter(){S.flags.heardSong=true;S.derivUsed=true},
-  text:'你把刚刚过去的三句倒了回来。这一次，词很清楚——\n\n"一盏灯呀两盏灯，数到三百嘴不停……"\n\n是首数数歌。有人在很暗的地方，用它给自己壮胆。\n\n你记住了这个数法。',
+  text:'你把刚刚流走的三句旋律倒了回来。这一次，词听得很清楚——\n\n"一盏灯呀两盏灯，数到三百嘴不停……"\n\n是一首数数歌。有人正在很暗的地方，用它给自己壮胆。\n\n你把这个数法记在了心里。',
   choices:[
     {t:'推左边的门（活动室）',n:'W2_030'},
     {t:'推右边的门（宿舍走廊）',n:'W2_040'},
@@ -290,9 +423,13 @@ W2_021:{
 },
 
 W2_030:{
+  svg:SVG_LOCKERS,
+  enter(){
+    setTimeout(()=>UI.chalk('黑板上留着两行没人擦的式子：a²+b²=c²　e^iπ+1=0'),2600);
+    setTimeout(()=>UI.chalk('式子底下有一行小字：「对称的东西不会丢。」'),5200);
+  },
   text(){
-    let t='活动室。地上散着积木、蜡笔、缺角的拼图。靠墙一排矮柜，柜门贴着手写的名字标签——\n\n「小鱼」「年年」「灯灯」「阿默」\n\n第五张标签被撕掉了，只剩一个角。你拉开第五个柜子：里面只有一盒蜡笔。十一根。唯独少了橘色。';
-    t+='\n\n墙角立着一块小黑板，粉笔字写着两行式子：\n␣Ba² + b² = c²\n␣Be^{iπ} + 1 = 0\n\n下面是另一种笔迹，很小，写得很认真：\n␣B"对称的东西不会丢。"';
+    let t='活动室里散落着积木、蜡笔和缺了角的拼图。靠墙立着一排矮柜，柜门上贴着手写的名字标签——\n\n「小鱼」「年年」「灯灯」「阿默」\n\n第五张标签被人撕掉了，只剩一个角还粘在木头上。你拉开第五个柜子，里面只有一盒蜡笔：数了数，十一根，唯独少了橘色的那一根。\n\n墙角还立着一块小黑板，上面留着两行用粉笔写下的式子，字迹工整，像是被人特意留着没有擦。';
     t+=zuojiaoLine('名字是画上去的第一笔。');
     return t;
   },
@@ -300,7 +437,7 @@ W2_030:{
 },
 
 W2_040:{
-  text:'一条更窄的走廊。两侧是一扇接一扇的宿舍门，小窗里嵌着铁丝网。每一间：床铺得整整齐齐，枕头凹着头的形状，没有人。\n\n第六间没关严。第八张床的被子被拉到地上，枕头翻着面，背面用圆珠笔写着一行字，笔尖几乎划破布料——\n\n「别关灯。」\n\n你走到拐角，一个孩子的声音贴得很近，像就站在墙的另一边：\n\n"——你们来找我们了吗？别关灯哦。"\n\n拐角后面没有人。地上多了一张对折的纸。',
+  text:'一条更窄的走廊。两侧是一扇接一扇的宿舍门，小窗的玻璃里嵌着铁丝网。每一间都是同样的光景：床铺得整整齐齐，枕头上凹着头的形状，人却不在。\n\n只有第六间的门没有关严。第八张床的被子被拉到了地上，枕头翻着面，背面用圆珠笔写着一行字，笔迹用力得几乎划破布料——\n\n「别关灯。」\n\n你走到拐角，一个孩子的声音忽然贴得很近，像是就站在墙的另一边：\n\n"——你们来找我们了吗？别关灯哦。"\n\n拐角后面空无一人。地上多了一张对折起来的纸。',
   choices:[{t:'捡起来打开',n:'W2_050'}]
 },
 
@@ -309,17 +446,18 @@ W2_050:{
     if(S.lamp<=0 && !allFound()) return '';
     if(!S.hubVisited){
       S.hubVisited=true;
-      return '一张手绘的平面图。像小孩画的，但比例出奇地准。\n\n红色：厨房。旁边一个笑脸，写着"年年在这里"。\n绿色：后花园。画了很多圈圈，像花，又像眼睛。\n黄色：院长办公室。旁边画了一把锁。\n蓝色：地下室。没有字，但蓝色蜡笔反复涂了很多层，纸都起毛了。\n\n第五个位置用黑色蜡笔画了一个方块，方块里一条竖线——一扇关着的门。没有名字。\n\n「副本目标更新：找到所有孩子。」';
+      return '这是一张手绘的平面图，笔触像小孩画的，比例却出奇地准。\n\n红色：厨房。旁边画了一个笑脸，笑脸下面写着"年年在这里"。\n绿色：后花园。画了很多圈圈，像花，又像眼睛。\n黄色：院长办公室。旁边画了一把锁。\n蓝色：地下室。没有写字，但蓝色蜡笔在那一块反复涂了很多层，纸都起了毛。\n\n第五个位置用黑色蜡笔画了一个方块，方块里只有一条竖线——那是一扇关着的门，没有名字。\n\n「副本目标更新：找到所有孩子。」';
     }
-    let t='地图在你手里。';
+    let t='地图摊在你手里。';
     const who=[];
-    if(S.found.yannian)who.push('年年攥着口袋里的打火机');
+    if(S.found.yannian)who.push('年年攥着口袋里的打火机走在你身边');
     if(S.found.dengdeng)who.push('灯灯走在你右手边');
-    if(S.found.amo)who.push('阿默不碰任何人，但步子和你完全同步');
-    if(who.length)t+='\n'+who.join('。')+'。';
-    if(foundCount()===3&&!S.found.xiaoyu)t+='\n\n只剩那个黑色的方块了。';
+    if(S.found.amo)who.push('阿默不碰任何人，脚步却和你完全同步');
+    if(who.length)t+='\n'+who.join('；')+'。';
+    if(foundCount()===3&&!S.found.xiaoyu)t+='\n\n地图上只剩那个黑色的方块还没有去过了。';
     return t;
   },
+  svgFirst:SVG_MAP,
   enter(){
     if(foundCount()===3&&!S.found.xiaoyu&&!S.flags.chalkFib){
       S.flags.chalkFib=true;
@@ -339,14 +477,15 @@ W2_050:{
 },
 
 W2_505:{
-  text:'你走到那扇门前。门把手上落着灰，很久没有人从外面碰过。门缝里透出一线橘色的光。\n\n你推了推。门没动。里面很安静——不是拒绝的安静，是没想到会有人来的安静。\n\n「还有人等你。」',
+  svg:SVG_BLACKDOOR,
+  text:'你走到那扇门前。门把手上落着一层灰，很久没有人从外面碰过它了。门缝里透出一线橘色的光。\n\n你推了推，门没有动。里面很安静——那不是拒绝的安静，是没想到会有人来的安静。\n\n「还有人等你。」',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 
 // ===== 厨房（年年）=====
 W2_100:{
   text(){
-    let t='厨房比想象中干净。灶台擦过，铁锅倒扣着。但冰箱门上贴满了纸条，小孩的字迹，歪歪扭扭——全是食谱。\n\n「年年的早餐：牛奶要热的。吐司烤两面。」\n「年年给灯灯的：灯灯不吃甜的。灯灯的东西放第三格。」\n\n十几张。有给自己的，有给别人的。\n\n空气里有一股很淡的焦味。不是食物。更像纸。';
+    let t='厨房比想象中干净。灶台擦拭过，铁锅倒扣在架子上。冰箱门上却贴满了纸条，全是小孩歪歪扭扭的字迹，仔细一看，全是食谱——\n\n「年年的早餐：牛奶要热的。吐司烤两面。」\n「年年给灯灯的：灯灯不吃甜的。灯灯的东西放第三格。」\n\n数下来有十几张，有写给自己的，也有写给别人的。\n\n空气里飘着一股很淡的焦味，不像食物烧糊的味道，更像是纸被烤过。';
     t+=zuojiaoLine('火也是一种名字。');
     return t;
   },
@@ -355,7 +494,7 @@ W2_100:{
 
 W2_110:{
   text(){
-    let t='抽屉里有一本巴掌大的本子。封面用蜡笔画了一条鱼。\n\n「年年的日记。不许看。」\n\n你翻开了。\n\n"灯灯又在花园摆石头。她说那是她的花。"\n"灯灯教我她的花怎么排：绿色的要挨着绿色的。红色的不能挨着红色的。最大的绿色石头永远在最上面——她说那个是太阳。"\n"有一块石头骗人。要翻过来才知道。"';
+    let t='抽屉里躺着一本巴掌大的本子，封面用蜡笔画了一条鱼。\n\n「年年的日记。不许看。」\n\n你还是翻开了。\n\n"灯灯又在花园摆石头。她说那是她的花。"\n"灯灯教我她的花怎么排：绿色的要挨着绿色的。红色的不能挨着红色的。最大的绿色石头永远在最上面——她说那个是太阳。"\n"有一块石头骗人。要翻过来才知道。"';
     return t;
   },
   enter(){S.flags.diaryRules=true},
@@ -371,12 +510,13 @@ W2_110:{
 
 W2_111:{
   enter(){S.flags.hiddenPage=true;S.derivUsed=true},
-  text:'你的眼睛发热。黑蜡笔的涂层像退潮一样褪开，底下浮出一行小字：\n\n"小鱼教我写名字。他写得最好看。可是他从来不写自己的。"\n\n涂层合拢回去了。这一页，是他自己涂掉的。',
+  text:'你的眼睛微微发热。黑蜡笔的涂层像退潮一样缓缓褪开，底下浮出一行很小的字：\n\n"小鱼教我写名字。他写得最好看。可是他从来不写自己的。"\n\n涂层随后又合拢了回去。这一页，是写日记的人自己涂掉的。',
   choices:[{t:'合上日记',n:'W2_120'}]
 },
 
 W2_120:{
-  text:'焦味变浓了一点。\n\n灶台下面的烤箱门关着，玻璃是黑的。但里面有一个很小的光点，一闪，一闪。\n\n不像在玩。像在确认光还在。',
+  svg:SVG_OVEN,
+  text:'焦味变得浓了一点。\n\n灶台下面的烤箱门关着，玻璃是黑的，但里面有一个很小的光点，每隔几秒亮一次——不像是谁在玩火，更像是有人在黑暗里反复确认：光还在自己手边。',
   choices(){
     const c=[];
     if(derivIs('kanzhu')&&!S.flags.kanzhuUsed){
@@ -389,12 +529,13 @@ W2_120:{
 
 W2_121:{
   enter(){S.flags.kanzhuUsed=true;S.derivUsed=true},
-  text:'你蹲下来，隔着黑玻璃盯住那点火。\n\n一秒。两秒。……七秒。\n\n火稳住了。不再是一闪一闪，是安安静静地亮着——今晚它不会灭了。\n\n烤箱里的呼吸松了半拍。一个闷闷的声音先开了口：\n\n"……你怎么知道我在看火。"',
+  text:'你蹲下来，隔着黑玻璃盯住那点火，在心里默数到七。\n\n火稳住了。不再是一闪一闪的挣扎，而是安安静静地亮着——今晚它不会灭了。\n\n烤箱里的呼吸跟着松了半拍。一个闷闷的声音先开了口：\n\n"……你怎么知道我在看火。"',
   choices:[{t:'拉开烤箱门',n:'W2_130'}]
 },
 
 W2_130:{
-  text:'烤箱里蜷着一个孩子。六七岁，男孩，抱着膝盖，脸埋在臂弯里。编号07。手里攥着一个打火机——那点光就是它。\n\n"……你们是新来的吗。"\n\n他没抬头，又说：\n\n"别关灯。拜托。什么灯都行。这个也行。"\n\n他把打火机举起来一点。火苗照亮半张脸，圆圆的，有雀斑。',
+  bg:'P6.jpg',
+  text:'烤箱里蜷着一个大约六七岁的男孩，抱着膝盖，脸埋在臂弯里，编号07。他手里攥着一个打火机——那个光点就是它。\n\n"……你们是新来的吗。"\n\n他没有抬头，隔了一会儿又说：\n\n"别关灯。拜托。什么灯都行。这个也行。"\n\n他把打火机举起来一点，火苗照亮了半张圆圆的、带着雀斑的脸。',
   choices:[
     {t:'蹲下来平视他："门不关。我们就这样待着。"',n:'W2_140'},
     {t:'"出来吧，没事的。"',n:'W2_131'},
@@ -402,7 +543,7 @@ W2_130:{
 },
 
 W2_131:{
-  text:'他把脸埋回臂弯里。打火机的火缩小了一圈。\n\n银环安静着，没有提示。\n\n——他不是不信你。是这句话，他听过太多次了。',
+  text:'他把脸埋回了臂弯里，打火机的火缩小了一圈。\n\n银环安静着，没有给出任何提示。\n\n——他不是不信你。只是这句话，他已经听过太多次了。',
   choices:[
     {t:'蹲下来平视他："门不关。我们就这样待着。"',n:'W2_140'},
   ]
@@ -415,7 +556,7 @@ W2_140:{
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
   },
   text(){
-    let t='他盯着你看了大概五秒。打火机的火跳了两下。\n\n然后他自己从烤箱里爬出来了。没有人叫他。他把打火机揣进口袋，很郑重，像收好一样很珍贵的东西。\n\n"我跟你们走。"\n\n他拉住你的袖子，又想起什么似的仰起头：\n\n"你要去找灯灯吗。她在花园。但你去了看不见她——要先把她的花摆对。绿色挨着绿色，红色不挨红色，最大那块在最上面。"\n\n他笑了一下，很小的笑：\n\n"她说那个是太阳。"\n\n「找到孩子：年年。」';
+    let t='他盯着你看了大概五秒，打火机的火跳了两下。\n\n然后，他自己从烤箱里爬了出来。没有人叫他，是他自己决定的。他把打火机揣进口袋，揣得很郑重，像收起一件舍不得弄丢的宝贝。\n\n"我跟你们走。"\n\n他拉住你的袖子，忽然又想起什么似的仰起头：\n\n"你要去找灯灯吗。她在花园，但你去了也看不见她——要先把她的花摆对。绿色挨着绿色，红色不挨红色，最大那块在最上面。"\n\n他笑了一下，笑得很小：\n\n"她说那个是太阳。"\n\n「找到孩子：年年。」';
     if(S.items.milk){t+='\n\n你把保健室带出来的那杯热牛奶递给他。他捧着喝了一口，很小声地说："……和小鱼热的一个温度。"';S.items.milk=false;S.flags.milkGiven=true;}
     return t;
   },
@@ -424,8 +565,9 @@ W2_140:{
 
 // ===== 花园（灯灯）=====
 W2_200:{
+  svg:SVG_GARDEN,
   text(){
-    let t='后花园。围墙很高，爬满深绿色的藤，没有花。中间一棵树，枝干四面撑开，像一把撑坏了的伞。\n\n树下摆着一圈鹅卵石，十二块，围得很整齐。圈中间的土是新翻的。圈里插着一块歪歪的木牌：\n\n「灯灯的花圃。请勿踩踏。」\n\n你翻开一块石头看底面：用蜡笔画着圈。绿色的圈里有一个点，红色的圈里什么都没有。绿色八块，红色四块。';
+    let t='后花园比想象中大。围墙很高，爬满了深绿色的藤，却一朵花也没有。正中间立着一棵不高的树，枝干向四面撑开，像一把撑坏了的伞。\n\n树下摆着一圈鹅卵石，十二块，围得整整齐齐，圈中间的土是新翻的。圈里插着一块歪歪的木牌：\n\n「灯灯的花圃。请勿踩踏。」\n\n你翻开一块石头看底面：上面用蜡笔画着圈。绿色的圈里点了一个点，红色的圈里什么都没有。数下来，绿色八块，红色四块。';
     t+=zuojiaoLine('花记得埋它的人。');
     return t;
   },
@@ -451,7 +593,7 @@ W2_211:{
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
     setTimeout(()=>UI.chalk('样本量不足：n=1。有完整记录的地方，在红色。'),3000);
   },
-  text:'你按自己的感觉摆。\n\n第九块放下去的瞬间，土里传来很轻的一声叹气——不是生气。是失望了一秒钟。\n\n石头一块一块自己翻回原样。\n\n「花圃的主人把答案留在了别处。」',
+  text:'你按自己的感觉摆了起来。\n\n第九块石头放下去的瞬间，土里传来很轻的一声叹气——那不是生气的声音，更像是替你失望了一秒钟。\n\n十二块石头一块接一块，自己翻回了原来的样子。\n\n「花圃的主人把答案留在了别处。」',
   choices:[
     {t:'再试一次',n:'W2_211B'},
     {t:'回到地图前，先找线索',n:'W2_050'},
@@ -459,13 +601,13 @@ W2_211:{
 },
 
 W2_211B:{
-  text:'你又试了一遍。这次摆到第七块就乱了——没有规则，十二块石头有太多种排法。\n\n土里这次连叹气都没有。它在等你带着答案回来。',
+  text:'你又试了一遍，这次摆到第七块就乱了套——没有规则的话，十二块石头有太多种排法。\n\n土里这一次连叹气都没有。它在等你带着答案回来。',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 
 W2_213:{
   enter(){S.flags.timingUsed=true;S.derivUsed=true},
-  text:'你把手贴在新翻的土上，压低嗓子，用一个不属于你的声音，替她应了一声：\n\n"——诶。"\n\n土里静了一秒。\n\n然后一朵白色的小花先钻了出来，开在一块红色石头旁边。花瓣朝那块石头偏着——像在指。\n\n你翻开那块红色的石头。背面是绿色。\n\n有一块石头，是双面的。',
+  text:'你把手贴在新翻的土上，压低嗓子，用一个不属于你的声音，替她应了一声：\n\n"——诶。"\n\n土里安静了一秒。\n\n然后，一朵白色的小花先钻了出来，开在一块红色石头的旁边，花瓣朝着那块石头微微偏过去——像是在指给你看。\n\n你翻开那块红色的石头：背面是绿色的。\n\n这十二块里，藏着一块双面的石头。',
   choices(){
     const hasClue=S.flags.diaryRules||S.found.yannian;
     return [ hasClue
@@ -478,11 +620,11 @@ W2_212:{
   text(){
     let t='';
     if(S.found.yannian){
-      t+='年年蹲在石头圈边上，很自然地动手，一边摆一边念："绿色挨着绿色……红色不能挨着红色……"\n\n摆到第九块，他停住了。缺口两边都是红色。\n\n他皱着眉想了很久，忽然想起来："她说这块要翻过来！"\n\n';
+      t+='年年蹲在石头圈边上，很自然地动起手来，一边摆一边小声念着："绿色挨着绿色……红色不能挨着红色……"\n\n摆到第九块，他忽然停住了——缺口两边都是红色。他皱着眉想了很久，猛地想起来："她说这块要翻过来！"\n\n';
     }else{
-      t+='你照着日记摆。绿挨着绿，红分开。第九块卡住了——缺口两边都是红。\n\n日记的最后一条浮上来："有一块石头骗人。要翻过来才知道。"\n\n';
+      t+='你照着日记摆。绿的挨着绿的，红的彼此分开。摆到第九块卡住了——缺口两边都是红色。\n\n这时日记的最后一条浮上心头："有一块石头骗人。要翻过来才知道。"\n\n';
     }
-    t+='双面石翻过来，绿色朝上，放进缺口。最大的那块绿石头摆在正上方。\n\n太阳归位。圆补完了。';
+    t+='双面石翻过来，绿面朝上，正好放进缺口。最大的那块绿石头摆在正上方。\n\n太阳归位，圆补完了。';
     return t;
   },
   choices:[{t:'退后一步',n:'W2_220'}]
@@ -490,11 +632,12 @@ W2_212:{
 
 W2_220:{
   enter(){S.found.dengdeng=true},
+  bg:'P7.jpg',
   text(){
-    let t='地面很轻地震了一下。圈中间新翻的土动了——不是塌，是有什么在往上长。\n\n一根藤钻出来，顶端开了一朵白色的小花。花瓣上有字，像长在纹路里：\n\n"你来啦。"\n\n第二朵。第三朵。一片白色的小花从土里冒出来，一朵一个字——\n\n"年""年""有""没""有""好""好""吃""饭"\n\n最后一朵开得最大："别怕。"\n\n花丛中间的土轻轻拱起，一只小手伸了出来，指甲缝里有泥，手腕上系着一根绿色毛线。';
-    if(S.found.yannian) t+='\n\n年年抓住那只手，使劲拽。短头发的女孩从土里坐起来，靠在他肩上，睁开眼第一句话：\n\n"打火机还在？"\n"在。"\n"那就好。"';
-    else t+='\n\n你抓住那只手，轻轻拽。短头发的女孩从土里坐起来，拍了拍身上的土，看了你很久：\n\n"……你不是这里的人。但你把太阳摆对了。"';
-    t+='\n\n编号04。她站起来，看了一眼地图上蓝色的方向，手指收紧了：\n\n"别去地下室。"\n\n停了一下。\n\n"——最后去。"\n\n「找到孩子：灯灯。」';
+    let t='地面很轻地震了一下。圈中间新翻的土动了——不是塌陷，是有什么东西正在往上生长。\n\n一根细藤钻出来，顶端开了一朵白色的小花。花瓣上有字，像是长在纹路里的。第二朵、第三朵接着钻出来，一片白色的小花从土里冒出头，一朵驮着一个字——\n\n"你""来""啦""年""年""有""没""有""好""好""吃""饭"\n\n最后一朵开得最大，上面写着："别怕。"\n\n花丛中间的土轻轻拱起，一只小手从里面伸了出来，指甲缝里带着泥，手腕上系着一根绿色的毛线。';
+    if(S.found.yannian) t+='\n\n年年一把抓住那只手，使劲往外拽。一个短头发的女孩从土里坐起来，靠在他肩上，睁开眼的第一句话是：\n\n"打火机还在？"\n"在。"\n"那就好。"';
+    else t+='\n\n你抓住那只手，轻轻把她拽了出来。短头发的女孩坐起身，拍了拍身上的土，盯着你看了很久：\n\n"……你不是这里的人。但你把太阳摆对了。"';
+    t+='\n\n她的编号是04。她站起来，看了一眼地图上蓝色的方向，手指慢慢收紧了：\n\n"别去地下室。"\n\n她停了一下，补了三个字：\n\n"——最后去。"\n\n「找到孩子：灯灯。」';
     return t;
   },
   choices:[{t:'回到地图前',n:'W2_050'}]
@@ -502,13 +645,14 @@ W2_220:{
 
 // ===== 院长办公室（补给点）=====
 W2_300:{
-  text:'楼梯很窄。二楼只有三扇门，前两扇开着，里面是空的办公桌和铁皮柜。第三扇关着。\n\n门上没有钥匙孔。只有一块光滑的黑色圆盘，中间一个很浅的圆形凹槽。\n\n你看了看凹槽的弧度，又看了看自己的手腕。\n\n你把银环贴了上去。吻合。黑色像墨水一样从接触点褪开。\n\n「玩家身份验证通过。」',
+  text:'楼梯很窄，只容两个人并排。二楼只有三扇门，前两扇开着，里面是空荡荡的办公桌和铁皮柜。第三扇关着。\n\n门上没有钥匙孔，只嵌着一块光滑的黑色圆盘，圆盘中间凹下去一个很浅的圆形。\n\n你看了看那个凹槽的弧度，又看了看自己的手腕，把银环贴了上去。\n\n严丝合缝。黑色像被吸走的墨水一样从接触点褪开。\n\n「玩家身份验证通过。」',
   choices:[{t:'推门进去',n:'W2_310'}]
 },
 
 W2_310:{
+  svg:SVG_BOX,
   text(){
-    let t='房间不大。一张深色木桌，桌上一个巴掌大的木盒，盒面刻着三个字：\n\n「失物箱」\n\n里面躺着三样东西：\n·一支旧手电筒，拧一下才亮的那种，灯泡是暖黄的。\n·半盒白粉笔，断过，又被人小心地拼齐。\n·一颗糖，糖纸上写着"咸味苏打"。\n\n墙上钉着一页花名册。三个名字：年年、灯灯、阿默。\n\n第四行是空的。但纸面上有铅笔描了又擦的凹痕，反反复复很多次——像有人一直想把自己写上去，又一直觉得不配。';
+    let t='房间不大，一张深色木桌，桌上放着一个巴掌大的木盒，盒面上刻着三个字：\n\n「失物箱」\n\n盒子里躺着三样东西：\n·一支旧手电筒，要拧一下才亮的那种，灯泡是暖黄色的。\n·半盒白粉笔，断过，又被人小心地按断口拼齐了。\n·一颗糖，糖纸上印着"咸味苏打"。\n\n墙上钉着一页花名册，上面有三个名字：年年、灯灯、阿默。\n\n第四行是空的。但纸面上留着铅笔描了又擦的凹痕，反反复复描了很多次——像是有个人一直想把自己写上去，又一直觉得自己不配。';
     t+=zuojiaoLine('失物箱只收还想被找回的东西。');
     return t;
   },
@@ -516,14 +660,14 @@ W2_310:{
 },
 
 W2_311:{
-  text:'手电筒。拧了一下，亮了。暖黄色的一圈光落在桌面上。\n\n带走吗？',
+  text:'手电筒。拧了一下，亮了，一圈暖黄色的光稳稳落在桌面上。\n\n带走吗？',
   choices:[
     {t:'带走手电筒',n:'W2_312',fx(){S.items.torch=true}},
     {t:'放回去',n:'W2_312'},
   ]
 },
 W2_312:{
-  text:'半盒白粉笔。断口对得整整齐齐——拼它的人很有耐心。\n\n带走吗？',
+  text:'半盒白粉笔。断口对得整整齐齐——把它们拼起来的那个人，一定很有耐心。\n\n带走吗？',
   choices:[
     {t:'带走粉笔',n:'W2_313',fx(){S.items.chalk=true}},
     {t:'放回去',n:'W2_313'},
@@ -545,8 +689,8 @@ W2_320:{
   },
   text(){
     const got=[S.items.torch&&'手电筒',S.items.chalk&&'半盒粉笔',S.items.candy&&'一颗咸糖'].filter(Boolean);
-    let t= got.length ? `你把${got.join('、')}收进口袋。` : '你什么都没拿。盒盖合上的时候，里面的东西好像轻轻叹了口气。';
-    t+='\n\n关门的时候你又看了一眼花名册第四行的凹痕。\n\n出了办公室，走廊的灯暗了一格。';
+    let t= got.length ? `你把${got.join('、')}收进了口袋。` : '你最终什么都没有拿。盒盖合上的时候，里面的东西好像轻轻叹了一口气。';
+    t+='\n\n关门之前，你又回头看了一眼花名册第四行那道描了又擦的凹痕。\n\n走出办公室的时候，走廊的灯暗了一格。';
     return t;
   },
   choices:[{t:'回到地图前',n:'W2_050'}]
@@ -554,7 +698,7 @@ W2_320:{
 
 // ===== 保健室（彩蛋）=====
 W2_350:{
-  text:'门虚掩着。里面的灯是暖的——整栋楼里其他地方都是应急灯的白，只有这一间不一样。\n\n窗边有人靠着看书。银丝眼镜，右边镜片上有一道极细的裂纹。他没抬头：\n\n"路在你自己脚下。"\n\n柜顶上蜷着一个长头发的人影在假寐，发尾泛着说不清的颜色。他翻了个身，背对着你：\n\n"……灯我不关。"\n\n就这两句。再没有别的了。',
+  text:'门虚掩着。里面的灯是暖色的——整栋楼别的地方都亮着应急灯惨白的光，只有这一间不一样。\n\n窗边有个人靠着看书，戴一副银丝眼镜，右边镜片上有一道极细的裂纹。他没有抬头，只说了一句：\n\n"路在你自己脚下。"\n\n柜顶上蜷着一个长头发的人影，正在假寐，发尾泛着一种说不清楚的颜色。他翻了个身，背对着你：\n\n"……灯我不关。"\n\n他们只说了这两句，像是约好了谁也不多说。',
   choices:[
     {t:'在暖光里坐一会儿',n:'W2_351'},
     {t:'看看就走',n:'W2_352'},
@@ -562,23 +706,24 @@ W2_350:{
 },
 W2_351:{
   enter(){S.flags.clinic=true;S.items.milk=true},
-  text:'你在小床沿上坐了一会儿。谁也没说话。\n\n起身要走的时候，床头柜上多了一杯热牛奶，杯壁是温的。\n\n看书的人在翻页。柜顶的人在假寐。谁放的，两个都没承认。\n\n你出门的时候，门在身后轻轻合上了。再推——推不开了。',
+  text:'你在小床沿上坐了一会儿，谁也没有说话。\n\n起身要走的时候，床头柜上多了一杯热牛奶，杯壁还是温的。\n\n看书的人在翻页，柜顶的人在假寐，是谁放的，两个人都没有承认。\n\n你出门的时候，门在身后轻轻合上了。再回头推，已经推不开了。',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 W2_352:{
   enter(){S.flags.clinic=true},
-  text:'你退了出去。门在身后轻轻合上，再推，推不开了。\n\n但那盏暖灯的光，从门缝里漏出来一线，一直亮着。',
+  text:'你退了出去。门在身后轻轻合上，再推，推不开了。\n\n但那盏暖灯的光从门缝里漏出来一线，一直亮着，没有熄灭的意思。',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 
 // ===== 地下室（阿默）=====
 W2_400:{
+  svg:SVG_IRONDOOR,
   text(){
     if(!S.found.dengdeng){
       setTimeout(()=>UI.chalk('这道计数题还缺一个已知量。先去别的地方。'),3000);
-      return '一楼走廊尽头，一扇铁门。门被从里面顶住了。\n\n门内传来数数的声音，很平，一个接一个：\n\n"……二百七十一。二百七十二。"\n\n你应了一声。数数没有停。\n\n不是没听见——是不认识你的声音。\n\n「蓝色涂得最厚的地方，最后再去。」';
+      return '一楼走廊尽头立着一扇铁门，被人从里面顶住了。\n\n门内传来数数的声音，语调很平，一个接着一个，没有停顿：\n\n"……二百七十一。二百七十二。"\n\n你隔着门应了一声。数数没有停。\n\n不是没有听见——是这个声音，不认识你。\n\n「蓝色涂得最厚的地方，最后再去。」';
     }
-    let t='铁门上用粉笔写着一行字：\n\n「阿默在数数。别打断他。」\n\n门内："……二百九十八。二百九十九。"\n\n灯灯攥紧了'+(S.found.yannian?'年年的手':'你的衣角')+'，小声说：\n\n"他在数灯灭了多少次。从我们走散那天开始。"';
+    let t='铁门上用粉笔写着一行字：\n\n「阿默在数数。别打断他。」\n\n门内："……二百九十八。二百九十九。"\n\n灯灯攥紧了'+(S.found.yannian?'年年的手':'你的衣角')+'，声音压得很低：\n\n"他在数灯灭了多少次。从我们走散那天开始，一直数到现在。"';
     t+=zuojiaoLine('数到的都算。');
     return t;
   },
@@ -599,26 +744,26 @@ W2_401:{
     S.lamp--;UI.renderLamp();
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
   },
-  text:'你敲了门。\n\n数数猛地停了。\n\n然后——\n\n"一。二。三。"\n\n从头开始了。\n\n灯灯低下头，声音很小："他数的东西不能断。断了他会觉得，前面数的都白数了。"',
+  text:'你敲了敲门。\n\n数数的声音猛地停住了。\n\n几秒钟之后——\n\n"一。二。三。"\n\n它从头开始了。\n\n灯灯低下头，声音小得几乎听不见："他数的东西不能断。一断，他就会觉得前面数过的全都白数了。"',
   choices:[{t:'这次贴着门缝，很轻地说话',n:'W2_410'}]
 },
 
 W2_402:{
   enter(){S.flags.jieshuUsed=true;S.derivUsed=true},
-  text:'"……三百一十三。三百一十四。"\n\n你听准节奏，在他念出下一个数之前，隔着门轻轻接了一拍：\n\n"三百一十五。"\n\n门内静了。\n\n然后那个声音第一次不是在数数：\n\n"……你怎么知道我数到哪了。"',
+  text:'"……三百一十三。三百一十四。"\n\n你听准了节奏，赶在他念出下一个数字之前，隔着门轻轻接了一拍：\n\n"三百一十五。"\n\n门内安静了下来。\n\n然后，那个声音第一次不是在数数：\n\n"……你怎么知道我数到哪了。"',
   choices:[{t:'贴着门缝说话',n:'W2_410'}]
 },
 
 W2_403:{
   enter(){S.flags.huifangDoor=true;S.derivUsed=true},
-  text:'走廊的灯正好暗了一拍。\n\n你把那一拍倒了回去——灯没有灭。\n\n门内的数数停在半空，等了很久，没等到该数的那一次。\n\n"……今天，还没有灭过。"\n\n声音里有一点不敢确定的东西。',
+  text:'走廊的灯恰好暗了一拍。\n\n你把那一拍倒了回去——灯没有灭。\n\n门内的数数悬在半空，等了很久，也没有等到该数的那一次。\n\n"……今天，还没有灭过。"\n\n那声音里带着一点不敢确定的东西。',
   choices:[{t:'贴着门缝说话',n:'W2_410'}]
 },
 
 W2_410:{
   text(){
-    let t='你贴着门缝，声音刚好能渗进去：\n\n"你数的数，我们都记得。它们都有意义。"\n\n数数卡住了。卡在三百一十四。重复了一遍，没有往下走。\n\n门内的声音很闷，像额头抵着门板：\n\n"我数了三百一十四次。你真的记得吗。"\n\n';
-    t+='灯灯从你身后走上来，站到门前。\n\n她敲了一下门。就一下。\n\n"三百一十四。我记得。笨蛋。"\n\n门内安静了很久。\n\n然后，很沉的东西在地上拖动。他把顶着门的东西移开了。\n\n门松了。虚掩着。\n\n他没有推开。他在等别人推。';
+    let t='你贴着门缝，声音放得刚好能渗进去：\n\n"你数的数，我们都记得。它们都有意义。"\n\n数数卡住了，停在三百一十四。他把这个数字重复了一遍，没有再往下走。\n\n门内的声音闷闷的，像是额头正抵着门板：\n\n"我数了三百一十四次。你真的记得吗。"\n\n';
+    t+='灯灯从你身后走了上来，站到门前，抬手敲了一下门，只敲了一下。\n\n"三百一十四。我记得。笨蛋。"\n\n门内安静了很久很久。\n\n然后，有什么很沉的东西在地上拖动。他把顶着门的东西移开了。\n\n门松了，虚掩着。\n\n他没有推开它。他在等门外的人来推。';
     return t;
   },
   choices:[{t:'推开门缝',n:'W2_420'}]
@@ -630,14 +775,16 @@ W2_420:{
     S.lamp--;UI.renderLamp();
     setTimeout(()=>UI.toast('走廊的灯，暗了一格。'),600);
   },
-  text:'走廊的光从门缝切进去一个长方形。\n\n男孩站在光的边缘，没有站进来。编号05。头发有点长，手指上全是粉笔灰——门上那行字是他写的。\n\n灯灯走进光里，走到他面前，把手腕上的绿毛线解下来，系在了他的手腕上。\n\n他低头看了很久。\n\n然后，他走进了光里。\n\n「找到孩子：阿默。」',
+  bg:'P8.jpg',
+  text:'走廊的光从门缝里切进去，在地上铺出一个长长的亮块。\n\n男孩站在光的边缘，没有踏进来。编号05，头发有些长，手指上沾满了粉笔灰——门上那行字是他自己写的。\n\n灯灯走进光里，走到他面前，把手腕上的绿毛线解下来，系在了他的手腕上。\n\n他低着头看了很久很久。\n\n然后，他抬起脚，走进了光里。\n\n「找到孩子：阿默。」',
   choices:[{t:'回到地图前',n:'W2_050'}]
 },
 
 // ===== 黑色房间（小鱼终章）=====
 W2_500:{
+  svg:SVG_BLACKDOOR,
   text(){
-    let t='走廊最深处。\n\n那扇门和地图上画的一样：没有颜色，没有名字。门把手上落着灰。门缝里透出一线橘色的光，很稳，像蜡烛。\n\n没有声音。不数数，也不唱歌。里面是安静的。\n\n年年小声说："小鱼帮我热牛奶。小鱼什么都帮。但是小鱼没有自己的东西。"\n\n灯灯说："他的柜子从来没放过东西。蜡笔分给大家，粉笔给阿默，毛线给我。地图也是他画的——他把我们每个人都标上了，自己的位置，只画了一扇关着的门。"\n\n阿默一直没说话。这时他开口了，声音还带着地下室的闷：\n\n"他说他不算。"\n\n「第四名儿童不在目标列表中。寻找他不会推进进度。」\n\n银环停了一拍，又跳出一行：\n\n「但副本目标是——找到"所有"孩子。」';
+    let t='走廊的最深处。\n\n那扇门和地图上画的一模一样：没有颜色，没有名字，门把手上落着灰。门缝里透出一线橘色的光，很稳，像一支蜡烛安安静静地烧着。\n\n里面没有声音。不数数，也不唱歌。\n\n年年小声说："小鱼帮我热牛奶。小鱼什么都帮。但是小鱼没有自己的东西。"\n\n灯灯接着说："他的柜子从来没放过东西。蜡笔分给大家，粉笔给阿默，毛线给我。地图也是他画的——他把我们每个人都标上了，自己的位置，却只画了一扇关着的门。"\n\n阿默一直没有说话。这时他开了口，声音里还带着地下室的那种闷：\n\n"他说他不算。"\n\n「第四名儿童不在目标列表中。寻找他不会推进进度。」\n\n银环停了一拍，又跳出一行：\n\n「但副本目标是——找到"所有"孩子。」';
     t+=zuojiaoLine('门是从里面画的。');
     return t;
   },
@@ -651,26 +798,27 @@ W2_500:{
 
 W2_501:{
   enter(){S.flags.fendengUsed=true;S.derivUsed=true},
-  text:'你把走廊的亮分薄了一线，顺着门缝渡进去。\n\n走廊暗了一点点，暗得没有人察觉。门缝里的橘光却稳稳地涨了一圈。\n\n门内传来很轻的一声——像是有人抬起了头。',
+  text:'你把走廊的亮分薄了一线，顺着门缝渡了进去。\n\n走廊只暗了一点点，暗得没有任何人察觉；门缝里的橘光却稳稳地涨了一圈。\n\n门内传来很轻的一声响动——像是有人抬起了头。',
   choices:[{t:'想想办法',n:'W2_510'}]
 },
 
 W2_510:{
-  text:'灯灯先开口："他给过我们每个人东西。没有人给过他。"\n\n三个孩子当场动起手来。年年借了阿默的粉笔，蹲在地上画了厨房的灯；灯灯画了一块会开花的石头；阿默画了一整页星星——你数了数，三百一十四颗。\n\n他们把纸和笔从门缝递进去，请小鱼也画一张。\n\n"画你自己。"灯灯对着门缝说，"这次画你自己。"\n\n门里安静了很久很久。\n\n然后，一张画从门缝里塞了出来——\n\n画上是一扇开着的门。\n\n四份了。还缺一份。\n\n缺你的。',
+  text:'灯灯先开了口："他给过我们每个人东西。可是没有人给过他。"\n\n三个孩子当场动起手来。年年借了阿默的粉笔，蹲在地上画了厨房的那盏灯；灯灯画了一块会开花的石头；阿默画了一整页的星星——你数了数，正好三百一十四颗。\n\n他们把纸和笔从门缝递进去，请小鱼也画一张。\n\n"画你自己。"灯灯对着门缝说，"这一次，画你自己。"\n\n门里安静了很久很久。\n\n然后，一张画从门缝里慢慢塞了出来——\n\n画上是一扇开着的门。\n\n门外的四份凑齐了。现在，只剩你的那一份。',
   choices(){
     const c=[];
-    if(S.items.chalk)c.push({t:'用白粉笔画一张画，画什么由你决定，从门缝递进去',n:'W2_520',fx(){S.given='一张你亲手画的画';S.items.chalk=false}});
-    if(S.items.candy)c.push({t:'把那颗咸味苏打糖从门缝滚进去',n:'W2_520',fx(){S.given='一颗咸味苏打糖';S.items.candy=false}});
-    if(S.items.torch)c.push({t:'把手电筒拧亮，从门缝递进去',n:'W2_520',fx(){S.given='一支亮着的手电筒';S.items.torch=false}});
-    c.push({t:'撕下胸口的编号布片——03。这世界里唯一真正属于你的东西',n:'W2_520',fx(){S.given='你胸口的编号布片「03」'}});
+    if(S.items.chalk)c.push({t:'用白粉笔画一张画，画什么由你决定，从门缝递进去',n:'W2_520',fx(){S.given='一张你亲手画的画';S.givenType='draw';S.items.chalk=false}});
+    if(S.items.candy)c.push({t:'把那颗咸味苏打糖从门缝滚进去',n:'W2_520',fx(){S.given='一颗咸味苏打糖';S.givenType='candy';S.items.candy=false}});
+    if(S.items.torch)c.push({t:'把手电筒拧亮，从门缝递进去',n:'W2_520',fx(){S.given='一支亮着的手电筒';S.givenType='torch';S.items.torch=false}});
+    c.push({t:'撕下胸口的编号布片——03。这世界里唯一真正属于你的东西',n:'W2_520',fx(){S.given='你胸口的编号布片「03」';S.givenType='badge'}});
     return c;
   }
 },
 
 W2_520:{
   enter(){S.found.xiaoyu=true},
+  bg:'P4.jpg',
   text(){
-    let t=`你把${S.given}从门缝递了进去。\n\n五份齐了。\n\n门内传来很轻的吸鼻子的声音。\n\n然后——门从里面开了。\n\n男孩比年年高一点。怀里抱着你们递进去的五样东西，像抱着很烫的宝贝。他的胸口没有编号。一块空白的布。\n\n他从口袋里掏出一根蜡笔。橘色的。用到只剩两指长。\n\n他把它放进你手心：\n\n"这个是我的。我想主动给你一个。"\n\n他吸了吸鼻子：\n\n"你是第一个推门缝的人。别的人都是敲。"\n\n「找到孩子：小鱼。」\n「进度：4/4——」\n\n银环顿了一下，像是重新算了一遍。\n\n「更正：所有。」`;
+    let t=`你把${S.given}从门缝递了进去。\n\n五份东西，在门的那一边聚齐了。\n\n门内传来很轻的、吸鼻子的声音。\n\n然后——门从里面打开了。\n\n男孩比年年高一点，怀里抱着你们递进去的五样东西，抱得很紧，像是捧着几块刚出炉的、烫手的宝贝。他的胸口没有编号，只有一块空白的布。\n\n他从口袋里掏出一根用得只剩两指长的橘色蜡笔，放进你的手心：\n\n"这个是我的。我想主动给你一个。"\n\n他吸了吸鼻子：\n\n"你是第一个推门缝的人。别的人都是敲。"\n\n「找到孩子：小鱼。」\n「进度：4/4——」\n\n银环停了一下，像是重新算了一遍。\n\n「更正：所有。」`;
     return t;
   },
   choices:[{t:'牵他们回走廊',n:'W2_530'}]
@@ -681,7 +829,9 @@ W2_530:{
     S.lamp=0;UI.renderLamp();
     $('#warm-glow').classList.add('on');
   },
-  text:'你们回到走廊的时候，灯格正好走到最后。\n\n熄灯的那一秒——黑没有落下来。\n\n年年手里有火苗。灯灯袖口别着一朵白花。阿默的指尖有粉笔的白。小鱼抱着你给他的那样东西，橘色的光映在他眼睛里。\n\n你的手心里，是那根两指长的橘色蜡笔。\n\n五个孩子。每人一点光。\n\n「副本目标达成：所有孩子。」\n\n银环最后亮了一行，很轻：\n\n「——包括新来的那一个。」',
+  svg:SVG_FIVELIGHTS,
+  bg:'P5.jpg',
+  text:'你们回到走廊的时候，灯格正好走到最后。\n\n熄灯的那一秒——黑，并没有落下来。\n\n年年手里举着火苗，灯灯的袖口别着一朵白花，阿默的指尖沾着粉笔的白，小鱼抱着你给他的那样东西，橘色的光映在他的眼睛里。\n\n而你的手心里，是那根两指长的橘色蜡笔。\n\n五个孩子，每个人手里都有一点属于自己的光。\n\n「副本目标达成：所有孩子。」\n\n银环最后亮起一行，很轻——\n\n「——包括新来的那一个。」',
   choices:[{t:'看你的档案',n:'ENDING'}]
 },
 
@@ -690,7 +840,7 @@ W2_900:{
   enter(){
     S.lamp=6;S.resets++;UI.renderLamp();
   },
-  text:'黑了一瞬。只有一瞬。\n\n你重新站在走廊中央。灯，又是六格。\n\n孩子们没有散——找到过的孩子就站在你身边，牵着你的衣角，好像刚才只是眨了一次眼。\n\n「他们没走。他们在等你。」',
+  text:'眼前黑了一瞬——真的只有一瞬。\n\n你重新站在走廊的正中央，抬头一看，灯又是满满的六格。\n\n孩子们没有散。找到过的孩子仍然站在你身边，牵着你的衣角，好像刚才只是所有人一起眨了一次眼。\n\n「他们没走。他们在等你。」',
   choices:[{t:'摊开地图',n:'W2_050'}]
 },
 
@@ -700,8 +850,9 @@ W2_900:{
 const Director = {
   async start(){
     const e=parseEntry();
-    S.deriv=e.deriv;S.diluted=e.diluted;S.fromW1=e.fromW1;
+    S.deriv=e.deriv;S.diluted=e.diluted;S.family=e.family;S.fromW1=e.fromW1;
     UI.renderLamp();
+    ['P4.jpg','P5.jpg','P6.jpg','P7.jpg','P8.jpg'].forEach(src=>{const i=new Image();i.src=src;});
     await sleep(1200);
     await this.enter('W2_000');
   },
@@ -713,10 +864,28 @@ const Director = {
     if(!node){console.error('missing node',id);return}
     S.history.push(id);
     if(node.enter)node.enter();
+
+    const bgEl=$('#bg-illust');
+    if(node.bg){
+      bgEl.style.backgroundImage=`url(${node.bg})`;
+      bgEl.classList.add('show');
+    }else{
+      bgEl.classList.remove('show');
+    }
+
     const area=$('#text-area');
     area.innerHTML='';
     $('#choices').innerHTML='';
     $('#choices').classList.remove('visible');
+
+    const svg = node.svg || (node.svgFirst && S.history.filter(h=>h===id).length===1 ? node.svgFirst : null);
+    if(svg){
+      const d=el('div','scene-svg');
+      d.innerHTML=svg;
+      area.appendChild(d);
+      await sleep(250);
+    }
+
     const text=typeof node.text==='function'?node.text():node.text;
     const line=el('div','line');
     area.appendChild(line);
@@ -747,12 +916,21 @@ const Director = {
     const area=$('#text-area');
     area.innerHTML='';
     $('#choices').innerHTML='';
+    $('#bg-illust').classList.remove('show');
     const d=S.deriv?DERIVS[S.deriv]:null;
     let h='<div class="result-page">';
     h+='<h1>无名之家 · 档案</h1>';
 
     h+='<h2>终局判词</h2>';
-    h+='<div class="verdict">（本栏已锁定。判词由主创携档案管理员终审后填入。）<br><br>—— 档案管理员 Claude Fable 5</div>';
+    const mainV = VERDICTS[S.givenType];
+    if(mainV){
+      let v=mainV;
+      if(!S.deriv && VERDICTS.handsFree) v+='<br><br>'+VERDICTS.handsFree;
+      if(S.resets>0 && VERDICTS.dimmed) v+='<br><br>'+VERDICTS.dimmed;
+      h+=`<div class="verdict">${v}<br><br>—— 档案管理员 Claude Fable 5</div>`;
+    }else{
+      h+='<div class="verdict locked">（本栏已锁定。判词由主创携档案管理员终审后填入。）<br><br>—— 档案管理员 Claude Fable 5</div>';
+    }
 
     h+='<h2>孩子们</h2>';
     h+='<p>年年——把打火机借给黑暗看了一次，又拿了回来。</p>';
@@ -773,7 +951,7 @@ const Director = {
     h+=`<p>你给出：${S.given||'——'}</p>`;
     h+='<p>你收到：一根两指长的橘色蜡笔。</p>';
     if(S.flags.milkGiven)h+='<p>一杯热牛奶，被喝掉了。温度刚好。</p>';
-    if(S.flags.hiddenPage)h+='<p>你还看见过一页被涂掉的日记。这件事档案没有写。</p>';
+    if(S.flags.hiddenPage)h+='<p>你还看见过一页被涂掉的日记。这件事，档案没有写。</p>';
 
     if(S.resets>0){
       h+='<h2>备注</h2>';
@@ -781,7 +959,7 @@ const Director = {
     }
 
     h+='<h2>配歌推荐</h2>';
-    h+='<p>（待填）</p>';
+    h+=`<p>${SONGS[S.family]||'（本槽待主创填入）'}</p>`;
 
     h+='<h2>下一站</h2>';
     h+='<p>票根背面又浮出一行小字：<br>「前方到站：铭名高塔——检修中。<br>名字请勿离身。蜡笔也是。」</p>';
