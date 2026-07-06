@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>.</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-base:#0a0a0d;
+  --bg-panel:#12131a;
+  --text-main:#d4d4cc;
+  --text-dim:#6a6a66;
+  --text-rule:#b8b8b0;
+  --accent:#5a4a3d;
+  --border:#222630;
+  --rewritten:#7a2e2e;
+  --warm:#c98a4b;
+  --font-main:-apple-system,"PingFang SC","Noto Sans SC","Hiragino Sans GB",sans-serif;
+  --font-rewritten:"Songti SC","STSong","Noto Serif SC",serif;
+  --fs-body:17px;
+  --fs-small:14px;
+  --fs-title:22px;
+  --lh:1.9;
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+  --content-max:540px;
+  --gutter:22px;
+  --tap-min:52px;
+  --z-curtain:9999;
+  --z-warm:5;
+}
+html,body{
+  height:100%;
+  background:var(--bg-base);
+  color:var(--text-main);
+  font-family:var(--font-main);
+  font-size:var(--fs-body);
+  line-height:var(--lh);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+#stage{
+  min-height:100dvh;
+  padding:calc(var(--safe-top) + var(--gutter)) var(--gutter) calc(var(--safe-bottom) + 80px);
+  max-width:var(--content-max);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  position:relative;
+  z-index:1;
+}
+#text-area{
+  min-height:40vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  white-space:pre-wrap;
+}
+.line{
+  margin-bottom:1.2em;
+  color:var(--text-rule);
+  letter-spacing:0.03em;
+}
+.line .cursor{
+  display:inline;
+  animation:blink 1s step-end infinite;
+  color:var(--text-dim);
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.rewritten{
+  color:var(--rewritten) !important;
+  font-family:var(--font-rewritten);
+  letter-spacing:0.05em;
+}
+#choices{
+  margin-top:2em;
+  opacity:0;
+  transition:opacity 0.4s ease;
+}
+#choices.visible{opacity:1}
+.choice-btn{
+  display:block;
+  width:100%;
+  min-height:var(--tap-min);
+  padding:14px 18px;
+  margin-bottom:12px;
+  background:var(--bg-panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  color:var(--text-main);
+  font-size:var(--fs-body);
+  font-family:var(--font-main);
+  line-height:1.6;
+  text-align:left;
+  cursor:pointer;
+  touch-action:manipulation;
+  transition:background 0.15s,border-color 0.15s;
+}
+.choice-btn:active{background:var(--border);border-color:#3a3e4a}
+.choice-btn:disabled{opacity:0.4;pointer-events:none}
+#curtain{
+  position:fixed;inset:0;
+  background:#000;
+  opacity:0;
+  pointer-events:none;
+  z-index:var(--z-curtain);
+  transition:opacity 0.35s ease;
+}
+#curtain.dark{opacity:1}
+#curtain.flicker{animation:tubeFlicker 0.9s steps(1,end) 1}
+@keyframes tubeFlicker{
+  0%{opacity:0}
+  8%{opacity:0.85}
+  16%{opacity:0.1}
+  28%{opacity:0.75}
+  38%{opacity:0.05}
+  55%{opacity:0.6}
+  70%{opacity:0}
+  100%{opacity:0}
+}
+#warm-glow{
+  position:fixed;inset:0;
+  z-index:var(--z-warm);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 3.2s ease;
+  background:
+    radial-gradient(ellipse at 0% 100%, rgba(201,138,75,0.35), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(201,138,75,0.28), transparent 55%),
+    radial-gradient(ellipse at 100% 0%, rgba(201,138,75,0.18), transparent 60%);
+}
+#warm-glow.on{opacity:1}
+#bgm-wrap{position:fixed;top:calc(var(--safe-top) + 52px);right:8px;z-index:99;overflow:hidden;max-height:0;opacity:0;transition:max-height 0.4s ease,opacity 0.3s ease;border-radius:8px;filter:brightness(0.6) saturate(0.5)}
+#bgm-wrap.open{max-height:90px;opacity:0.85}
+#sound-toggle{
+  position:fixed;
+  top:calc(var(--safe-top) + 12px);
+  right:12px;
+  width:36px;height:36px;
+  background:none;border:none;
+  color:var(--text-dim);
+  font-size:18px;
+  cursor:pointer;
+  z-index:100;
+  opacity:0.5;
+}
+.result-page{padding:20px 0}
+.result-page h1{font-size:var(--fs-title);color:var(--text-main);margin-bottom:0.5em;font-weight:600}
+.result-page h2{font-size:var(--fs-body);color:var(--text-dim);margin:1.5em 0 0.5em;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:6px}
+.result-page p{margin-bottom:0.6em;color:var(--text-rule)}
+.result-page .verdict{
+  margin:1.5em 0;
+  padding:16px;
+  border-left:3px solid var(--accent);
+  background:var(--bg-panel);
+  border-radius:0 8px 8px 0;
+  font-size:var(--fs-body);
+  line-height:1.8;
+}
+.result-page .history-item{
+  padding:6px 0;
+  border-bottom:1px solid var(--border);
+  color:var(--text-dim);
+  font-size:var(--fs-small);
+}
+.result-page .footer{
+  margin-top:3em;
+  padding-top:1em;
+  border-top:1px solid var(--border);
+  color:var(--text-dim);
+  font-size:var(--fs-small);
+  text-align:center;
+}
+/* ticket stub */
+.ticket-wrap{margin:1.5em 0;display:flex;justify-content:center}
+.ticket-svg{width:100%;max-width:360px;height:auto}
+.ticket-svg text{font-family:var(--font-main)}
+
+/* exploration scenes */
+#explore-wrap{
+  position:relative;
+  width:100%;
+  min-height:56vh;
+  overflow:hidden;
+}
+.explore-scene{
+  position:absolute;
+  top:0;left:0;
+  width:100%;
+  min-height:56vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  transition:transform 0.6s cubic-bezier(.4,0,.2,1), opacity 0.6s ease;
+  transform:translateX(0);
+}
+.explore-scene.enter-up{transform:translateY(0)}
+.explore-scene svg{width:100%;height:auto;display:block}
+.explore-caption{
+  margin-top:1em;
+  color:var(--text-rule);
+  white-space:pre-wrap;
+}
+.no-transform .explore-scene{transition:opacity 0.5s ease !important; transform:none !important}
+.explore-dirbtns{display:flex;gap:12px;margin-top:1.6em}
+.explore-dirbtns .choice-btn{flex:1;text-align:center}
+@media (prefers-reduced-motion: reduce){
+  .explore-scene{transition:opacity 0.5s ease !important; transform:none !important}
+}
+@keyframes floatUp{
+  0%{transform:translateY(0) translateX(0);opacity:0.4}
+  50%{opacity:0.7}
+  100%{transform:translateY(-100vh) translateX(20px);opacity:0}
+}
+.particle-bg::before,.particle-bg::after{
+  content:'';
+  position:fixed;
+  width:2px;height:2px;
+  background:rgba(180,180,170,0.3);
+  border-radius:50%;
+  animation:floatUp 8s linear infinite;
+  pointer-events:none;
+  z-index:0;
+}
+.particle-bg::before{left:20%;bottom:-10px;animation-delay:0s}
+.particle-bg::after{right:30%;bottom:-10px;animation-delay:4s;animation-duration:12s}
+.guide-hint{
+  font-weight:600;
+  color:#c8c0b0;
+  text-shadow:0 0 6px rgba(200,192,176,0.4), 0 0 12px rgba(200,192,176,0.15);
+  letter-spacing:0.04em;
+}
+#chalk-marks{position:fixed;bottom:12px;left:16px;right:16px;pointer-events:none;z-index:5}
+.chalk-mark{font-size:13px;color:rgba(220,216,205,0.6);font-family:'Courier New',monospace;letter-spacing:0.08em;opacity:0;animation:chalkIn 0.8s ease forwards;margin-top:4px}
+@keyframes chalkIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:0.6;transform:translateY(0)}}
+#light-toggle{position:fixed;top:12px;left:12px;background:none;border:none;font-size:18px;color:var(--text-dim);cursor:pointer;opacity:0.4;z-index:10;transition:opacity 0.3s}
+#light-toggle.on{opacity:0.8;color:#e8d5a0}
+body.light-on{--bg-base:#141312;--text-main:#d4d0c8}
+body.light-on #warm-glow{opacity:0.25}
+.npc-dialogue{color:#d4cbb8}
+/* gacha animation */
+.gacha-anim{text-align:center;margin:1.5em 0}
+.gacha-knob{transform-origin:40px 40px;animation:gachaKnob 0.8s ease-in-out forwards}
+@keyframes gachaKnob{0%{transform:rotate(0)}50%{transform:rotate(180deg)}100%{transform:rotate(540deg)}}
+.gacha-tumble{text-align:center;color:var(--text-dim);font-size:var(--fs-small);letter-spacing:0.3em;transition:opacity 0.3s}
+</style>
+</head>
+<body>
+<div id="curtain"></div>
+<div id="warm-glow"></div>
+<button id="sound-toggle" aria-label="sound">&#9834;</button>
+<div id="bgm-wrap"><iframe id="bgm-player" frameborder="no" border="0" marginwidth="0" marginheight="0" width="330" height="86" src="//music.163.com/outchain/player?type=2&id=2703190915&auto=0&height=66"></iframe></div>
+<button id="light-toggle" aria-label="light">&#128161;</button>
+<div id="chalk-marks"></div>
+<div id="stage">
+  <div id="text-area"></div>
+  <div id="explore-wrap" style="display:none"></div>
+  <div id="choices"></div>
+</div>
+
+<script>
+// ==== FOUNDATION: EventBus & Utils ====
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+function $(sel) { return document.querySelector(sel) }
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+function supportsTransform() {
+  try {
+    const s = document.createElement('div').style;
+    return ('transform' in s);
+  } catch(e) { return false; }
+}
+if (!supportsTransform()) document.body.classList.add('no-transform');
+
+// ==== ENGINE: Typewriter (supports inline .rewritten spans via {r:'...'} tokens) ====
+const Typewriter = {
+  cancelled: false,
+  container: null,
+
+  // tokens: {type:'text', content, speed} | {type:'pause', duration} | {type:'backspace', count, speed}
+  // content may embed rewritten segments using ... markers handled by _render via segments array instead.
+  async playLine(tokens, container, defaultSpeed = 40) {
+    this.cancelled = false;
+    this.container = container;
+    // segments: array of {text, rewritten:bool, guide:bool} built progressively
+    let segments = [{ text: '', rewritten: false, guide: false }];
+
+    const pushChar = (ch, rewritten, guide) => {
+      let last = segments[segments.length - 1];
+      if (last.rewritten !== rewritten || last.guide !== guide) {
+        last = { text: '', rewritten, guide };
+        segments.push(last);
+      }
+      last.text += ch;
+    };
+    const popChar = () => {
+      for (let i = segments.length - 1; i >= 0; i--) {
+        if (segments[i].text.length > 0) {
+          segments[i].text = segments[i].text.slice(0, -1);
+          if (segments[i].text.length === 0 && segments.length > 1) segments.pop();
+          return;
+        }
+      }
+    };
+
+    for (const token of tokens) {
+      if (this.cancelled) break;
+      switch (token.type) {
+        case 'text': {
+          const rewritten = !!token.rewritten;
+          const guide = !!token.guide;
+          for (const ch of token.content) {
+            if (this.cancelled) break;
+            pushChar(ch, rewritten, guide);
+            this._render(container, segments);
+            await sleep(token.speed || defaultSpeed);
+          }
+          break;
+        }
+        case 'pause':
+          await sleep(token.duration);
+          break;
+        case 'backspace':
+          for (let i = 0; i < token.count; i++) {
+            if (this.cancelled) break;
+            popChar();
+            this._render(container, segments);
+            await sleep(token.speed || 40);
+          }
+          break;
+      }
+    }
+
+    if (this.cancelled) {
+      segments = this._computeFinal(tokens);
+    }
+    this._render(container, segments, false);
+    return segments;
+  },
+
+  skip() { this.cancelled = true; },
+
+  _render(container, segments, showCursor = true) {
+    let html = '';
+    for (const seg of segments) {
+      const escaped = seg.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      if (seg.rewritten) html += `<span class="rewritten">${escaped}</span>`;
+      else if (seg.guide) html += `<span class="guide-hint">${escaped}</span>`;
+      else html += escaped;
+    }
+    container.innerHTML = html + (showCursor ? '<span class="cursor">▌</span>' : '');
+  },
+
+  _computeFinal(tokens) {
+    let segs = [{ text: '', rewritten: false, guide: false }];
+    const push = (s, rewritten, guide) => {
+      let last = segs[segs.length - 1];
+      if (last.rewritten !== rewritten || last.guide !== guide) { last = { text:'', rewritten, guide }; segs.push(last); }
+      last.text += s;
+    };
+    for (const t of tokens) {
+      if (t.type === 'text') push(t.content, !!t.rewritten, !!t.guide);
+      else if (t.type === 'backspace') {
+        let remain = t.count;
+        while (remain > 0 && segs.length) {
+          let last = segs[segs.length - 1];
+          const take = Math.min(remain, last.text.length);
+          last.text = last.text.slice(0, last.text.length - take);
+          remain -= take;
+          if (last.text.length === 0 && segs.length > 1) segs.pop();
+          else if (remain > 0 && segs.length <= 1) break;
+        }
+      }
+    }
+    return segs;
+  }
+};
+
+// ==== ENGINE: Transition ====
+const Transition = {
+  async lightsOff(dimMs = 350, holdMs = 500, riseMs = 350) {
+    const c = $('#curtain');
+    c.classList.remove('flicker');
+    c.style.transition = `opacity ${dimMs}ms ease`;
+    c.classList.add('dark');
+    await sleep(dimMs + holdMs);
+    c.style.transition = `opacity ${riseMs}ms ease`;
+    c.classList.remove('dark');
+    await sleep(riseMs);
+  },
+  // the one and only "tube flicker" event in the whole run
+  async tubeFlicker() {
+    const c = $('#curtain');
+    c.style.transition = 'none';
+    c.classList.remove('dark');
+    c.classList.add('flicker');
+    await sleep(950);
+    c.classList.remove('flicker');
+  },
+  async warmIn() {
+    $('#warm-glow').classList.add('on');
+  },
+  async warmOut() {
+    $('#warm-glow').classList.remove('on');
+  }
+};
+
+// ==== ENGINE: State Manager ====
+const State = {
+  current: null,
+  lightOn: false,
+  init() {
+    this.current = {
+      nodeId: 'cold_boot',
+      attrs: { curiosity: 0, obedience: 0, empathy: 0, caution: 0, count_faces: 0, registry: 0 },
+      power: { awakened: false, id: null, stage: 0, path: null },
+      inventory: [],
+      deposit: null,
+      depositIsName: false,
+      flags: {},
+      history: [],
+      settings: { soundOn: false },
+      gachaResult: null,   // {kind:'regular'|'special', id, name}
+      gachaTaken: null,    // what the machine took from the player
+      letterChoice: null,  // 'open' | 'keep' | 'handin'
+      floorDirection: null, // 'up' | 'down'
+      ruleStance: null,    // 'old' | 'new'
+      pathRoute: null,     // final route flag for verdict
+    };
+  },
+  apply(effects) {
+    if (!effects) return;
+    for (const eff of effects) {
+      if (eff.attr) {
+        const v = this.current.attrs[eff.attr] || 0;
+        if (eff.op === 'inc') this.current.attrs[eff.attr] = v + (eff.value || 1);
+        else if (eff.op === 'set') this.current.attrs[eff.attr] = eff.value;
+      }
+      if (eff.flag) this.current.flags[eff.flag] = true;
+      if (eff.power) Object.assign(this.current.power, eff.power);
+      if (eff.deposit) { this.current.deposit = eff.deposit.text; this.current.depositIsName = !!eff.deposit.isName; }
+      if (eff.set) Object.assign(this.current, eff.set);
+    }
+  },
+  record(nodeId, choiceText) {
+    this.current.history.push({ nodeId, choiceText, ts: Date.now() });
+  },
+  has(flag) { return !!this.current.flags[flag] },
+  attr(k) { return this.current.attrs[k] || 0 },
+};
+
+// ==== ENGINE: Sound (stub, default muted) ====
+const Sound = {
+  unlocked: false,
+  enabled: false,
+  tryUnlock() {
+    if (this.unlocked) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume();
+      this.unlocked = true;
+    } catch(e) {}
+  },
+  toggle() {
+    this.enabled = !this.enabled;
+    $('#sound-toggle').textContent = this.enabled ? '♫' : '♪';
+    $('#bgm-wrap').classList.toggle('open', this.enabled);
+  }
+};
+$('#sound-toggle').addEventListener('click', () => Sound.toggle());
+$('#light-toggle').addEventListener('click', () => {
+  State.lightOn = !State.lightOn;
+  document.body.classList.toggle('light-on', State.lightOn);
+  $('#light-toggle').classList.toggle('on', State.lightOn);
+});
+
+// ==== SVG line-art scenes for exploration nodes ====
+const SVG_STAIRWELL_UP = `<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#5a5d68" stroke-width="1.2">
+<rect x="10" y="10" width="380" height="280" stroke="#2a2d36"/>
+<path d="M20 260 L120 260 L120 230 L160 230 L160 200 L200 200 L200 170 L240 170 L240 140 L280 140 L280 110 L320 110 L320 80"/>
+<line x1="20" y1="260" x2="20" y2="20"/>
+<line x1="320" y1="80" x2="320" y2="20"/>
+<line x1="60" y1="260" x2="60" y2="235" stroke="#3a3d46"/>
+<line x1="100" y1="260" x2="100" y2="235" stroke="#3a3d46"/>
+<circle cx="340" cy="60" r="10" stroke="#c98a4b" stroke-width="1"/>
+<line x1="340" y1="70" x2="340" y2="90" stroke="#c98a4b" stroke-width="0.8"/>
+<text x="60" y="180" font-size="9" fill="#3a3d46" stroke="none" opacity="0.6">37-12=25</text>
+<text x="180" y="100" font-size="9" fill="#3a3d46" stroke="none" opacity="0.5">∑1/n²=π²/6</text>
+</svg>`;
+
+const SVG_ENVELOPE = `<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#5a5d68" stroke-width="1" style="width:120px;height:auto;display:block;margin:0 auto 1em;">
+<rect x="10" y="20" width="180" height="100" rx="4"/>
+<path d="M10 20 L100 75 L190 20"/>
+<line x1="30" y1="90" x2="80" y2="60" stroke="#3a3d46" stroke-width="0.7"/>
+<line x1="170" y1="90" x2="120" y2="60" stroke="#3a3d46" stroke-width="0.7"/>
+</svg>`;
+
+const SVG_STAIRWELL_DOWN = `<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#4a4d56" stroke-width="1.2">
+<rect x="10" y="10" width="380" height="280" stroke="#22242b"/>
+<path d="M20 60 L120 60 L120 90 L160 90 L160 120 L200 120 L200 150 L240 150 L240 180 L280 180 L280 210 L320 210 L320 240"/>
+<line x1="20" y1="60" x2="20" y2="280"/>
+<line x1="320" y1="240" x2="320" y2="280"/>
+<path d="M20 280 Q200 296 380 280" stroke="#33363f" stroke-width="0.8"/>
+</svg>`;
+
+const SVG_CORRIDOR = `<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#54575f" stroke-width="1.2">
+<line x1="0" y1="220" x2="400" y2="220"/>
+<line x1="0" y1="90" x2="400" y2="90"/>
+<line x1="60" y1="90" x2="10" y2="220"/>
+<line x1="340" y1="90" x2="390" y2="220"/>
+<rect x="150" y="120" width="60" height="90" stroke="#3a3d46"/>
+<line x1="0" y1="150" x2="400" y2="150" stroke="#2a2d34" stroke-dasharray="2 6"/>
+</svg>`;
+
+const SVG_DOORPLATE = `<svg viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#565962" stroke-width="1.2">
+<rect x="20" y="10" width="260" height="200" stroke="#2e3038"/>
+<rect x="120" y="70" width="60" height="34" rx="3" stroke="#6f4a3a"/>
+<text x="150" y="93" font-size="16" fill="#8a5a45" text-anchor="middle" stroke="none">301</text>
+<path d="M40 190 L120 150" stroke="#9a9a94" stroke-width="1" stroke-dasharray="3 3"/>
+<line x1="255" y1="180" x2="255" y2="30" stroke="#3a3d46"/>
+</svg>`;
+
+// ==== STORY DATA ====
+const STORY = {
+
+rules: [
+  { id: 'rule_1', tokens: [
+    { type: 'text', content: '规则一：熄灯时间是二十三点整。熄灯后，请留在自己的床位上。' }
+  ]},
+  { id: 'rule_2', tokens: [
+    { type: 'text', content: '规则二：睡前请清点寝室人数。如果比昨晚多出一位，装作没有发现。多出来的那位，明早会自己离开。' }
+  ]},
+  { id: 'rule_3', tokens: [
+    { type: 'text', content: '规则三：午夜查寝会逐床核对姓名。如果宿管念到一个陌生的名字，而没有人应答——' },
+    { type: 'pause', duration: 2000 },
+    { type: 'backspace', count: 8, speed: 45 },
+    { type: 'pause', duration: 300 },
+    { type: 'text', content: '请替那个名字，应一声。', speed: 70, rewritten: true }
+  ]}
+],
+
+opening: {
+  text: { tokens: [
+    { type: 'text', content: '你只知道一件事：', speed: 50 },
+    { type: 'text', content: '天亮前，必须离开这栋楼，赶上末班车。', speed: 55, guide: true },
+    { type: 'pause', ms: 600 },
+    { type: 'text', content: '\n\n现在是 23:58。你数了一遍：你的寝室住四个人，床上躺着四个人。包括你，一共五个。走廊尽头传来钥匙串的响声，由远及近。' }
+  ]},
+  isTokenNode: true,
+  choices: [
+    { id: 'c1_sleep', text: '装睡等点名', next: 'N02_pretend_sleep', effects: [{ attr: 'obedience', op: 'inc' }, { attr: 'caution', op: 'inc' }] },
+    { id: 'c1_wake', text: '叫醒离你最近的那个', next: 'N02_wake_neighbor', effects: [{ attr: 'empathy', op: 'inc' }] },
+    { id: 'c1_count', text: '现在就去数第五个人的脸', next: 'N02_count_face', effects: [{ attr: 'curiosity', op: 'inc', value: 2 }, { attr: 'count_faces', op: 'inc' }] }
+  ]
+},
+
+nodes: {
+
+'N02_pretend_sleep': {
+  text: '你闭上眼睡，调整呼吸。钥匙声停在了门口。有人推门进来，脚步很轻，但每一步踩在地板上的节奏都不对——像是一双脚，走出了三拍的声音。宿管开始念名字。前三个你都认识。第四个名字，你从没听过。',
+  choices: [
+    { id: 'c2a_answer', text: '替那个名字应一声', next: 'N03_answer_name', effects: [{ flag: 'answered_stranger' }, { attr: 'empathy', op: 'inc' }] },
+    { id: 'c2a_silent', text: '继续装睡，一声不出', next: 'N03_stay_silent', effects: [{ attr: 'caution', op: 'inc' }, { attr: 'obedience', op: 'inc' }] }
+  ]
+},
+
+'N02_wake_neighbor': {
+  text: '你伸手推了推旁边的人。他翻了个身，看了你一眼，眼里映着天花板上的荧光灯。他张了张嘴，没出声，只是慢慢伸出一根手指，指向你身后的方向。你转头——第五张床上的人正坐着，眼睛开着，看着天花板。',
+  choices: [
+    { id: 'c2b_look', text: '看清那个人的脸', next: 'N03_see_fifth', effects: [{ attr: 'curiosity', op: 'inc' }, { attr: 'count_faces', op: 'inc' }] },
+    { id: 'c2b_hide', text: '缩回被子里，不看', next: 'N03_stay_silent', effects: [{ attr: 'caution', op: 'inc' }] }
+  ]
+},
+
+'N02_count_face': {
+  text: '你坐起来，借着走廊漏进来的光，一张一张数。第一张：室友，睡着。第二张：室友，背对你。第三张：室友，眉头紧锁。第四张——脸的轮廓比正常人窄了一圈，像是被从侧面挤压过。它的眼睛开着，但没有在看你——它在看它自己的倒影。',
+  choices: [
+    { id: 'c2c_stare', text: '盯着它看', next: 'N03_stare_fifth', effects: [{ attr: 'curiosity', op: 'inc', value: 2 }, { attr: 'count_faces', op: 'inc' }, { flag: 'stared_fifth' }] },
+    { id: 'c2c_away', text: '移开视线，等宿管来', next: 'N03_stay_silent', effects: [{ attr: 'caution', op: 'inc' }] }
+  ]
+},
+
+'N03_answer_name': {
+  text: '"到。"你的声音出口的瞬间，整间寝室的空气压低了一度。宿管的笔在名册上划了一勾，然后继续往下念。你感到一种被"登记"的触感——像是有一份名单，刚刚把你的存在，暂时挂在了别人的名字下面。你的影子多了一圈轮廓。',
+  effects: [{ power: { awakened: true, id: 'daida', stage: 1 } }, { flag: 'route_named' }],
+  choices: [
+    { id: 'c3a_explore', text: '起床，去走廊看看', next: 'N04_hallway', effects: [] },
+    { id: 'c3a_wait', text: '等宿管走后再动', next: 'N04_after_check', effects: [{ attr: 'caution', op: 'inc' }] }
+  ]
+},
+
+'N03_stare_fifth': {
+  text: '你盯着它。一秒、两秒、三秒——它的脸开始浮出一层灰，像是照片被错误曝光。你的眼睛发热。然后你看到了——墙上贴的那张"寝室公约"，其中有半句话的颜色，比另半句暗了一截。那半句，是假的。你站起来的时候，门口有一个影子闪过——太快了，只够你用余光确认那是一个人形的东西。',
+  effects: [{ power: { awakened: true, id: 'zhishi', stage: 1 } }],
+  choices: [
+    { id: 'c3b_explore', text: '起床，去验证其他地方的文字', next: 'N04_hallway', effects: [{ attr: 'curiosity', op: 'inc' }] }
+  ]
+},
+
+'N03_see_fifth': {
+  text: '第五个人的脸没有表情。不是"面无表情"，是表情本身不存在——像是有人在这张脸上只完成了五官的布局，没来得及写入任何数据。你注意到它身下的床单是干净的，没有任何触碰的痕迹。你走出门时，身后有人轻轻咳了一声——不是室友的声音。',
+  choices: [
+    { id: 'c3c_count', text: '继续数——这个算"人"吗', next: 'N04_hallway', effects: [{ attr: 'count_faces', op: 'inc' }, { attr: 'curiosity', op: 'inc' }] },
+    { id: 'c3c_leave', text: '不管了，出去', next: 'N04_hallway', effects: [{ attr: 'caution', op: 'inc' }] }
+  ]
+},
+
+'N03_stay_silent': {
+  text: '你没有动。宿管的脚步慢慢远去，钥匙声消失在走廊尽头。寝室重新安静下来。但你知道有什么不对——刚才宿管念的名字，比这间寝室的床位数，多了一个。没人应那个名字。也没人被带走。',
+  choices: [
+    { id: 'c3d_explore', text: '等不了了，起床', next: 'N04_hallway', effects: [] },
+    { id: 'c3d_sleep', text: '翻个身继续睡', next: 'N04_after_check', effects: [{ attr: 'caution', op: 'inc' }] }
+  ]
+},
+
+'N04_hallway': {
+  isTokenNode: true,
+  text: { tokens: [
+    { type: 'text', content: '走廊只亮着应急灯，白光贴地爬。右边有一扇门，门缝透出暖黄色的光。你身后，走廊的另一头，有什么东西比你晚半拍落地。床铺不远处，一张陌生的信纸从枕头底下探出一角，收信人的名字你从未在这层楼听过。\n\n水管滴水声的间隙里，夹杂着一丝极其微弱的金属碰撞。' }
+  ]},
+  chalkMark: '地上有粉笔写的算式：37−12=？答案没被擦掉，是25。算式的等号指向左边。',
+  choices: [
+    { id: 'c4_left', text: '沿粉笔的方向左转', next: 'N05_chalk_path', effects: [{ attr: 'curiosity', op: 'inc' }] },
+    { id: 'c4_right', text: '推开右边透光的门', next: 'N05_convenience', effects: [] },
+    { id: 'c4_letter', text: '先看那封信', next: 'N05_letter_found', effects: [] },
+    { id: 'c4_back', text: '回头确认那个多出的半拍', next: 'N05_turn_back', effects: [{ attr: 'curiosity', op: 'inc' }] }
+  ]
+},
+
+'N04_after_check': {
+  text: '你等了很久。不知道过了多久，走廊的灯全灭了，只剩应急灯的白光。你发现寝室里只剩你一个人。其他四张床的被子叠得整整齐齐，像是从来没有人睡过。床头露出一角信纸。',
+  choices: [
+    { id: 'c4b_out', text: '出去找人', next: 'N04_hallway', effects: [] }
+  ]
+},
+
+// ===== LETTER LINE =====
+'N05_letter_found': {
+  svgBefore: SVG_ENVELOPE,
+  text: '信封没有封口的胶水痕迹，像是从来没有寄出去过，却又确实躺在这里，邮戳齐全，日期正常。收信人的名字，你在这层楼从没听过。寄信人的字迹很松弛，显然以为对方过得很好。',
+  choices: [
+    { id: 'c5l_open', text: '拆开', next: 'N06_letter_open', effects: [{ set: { letterChoice: 'open' } }, { flag: 'letter_open' }] },
+    { id: 'c5l_keep', text: '收进衣兜，代收保管', next: 'N06_letter_keep', effects: [{ set: { letterChoice: 'keep' } }, { flag: 'letter_keep' }] },
+    { id: 'c5l_handin', text: '交给失物招领处', next: 'N06_letter_handin', effects: [{ set: { letterChoice: 'handin' } }, { flag: 'letter_handin' }, { flag: 'route_named' }] }
+  ]
+},
+
+'N06_letter_open': {
+  text: '"……新发的制服很合身吧？你一直怕冷，记得把领口扣死，别让它们看见你的锁骨……"\n\n信封里抖落出一枚干瘪的纽扣，型号与你身上这件一模一样。床铺上的被褥冰冷坚硬，没有折痕。',
+  choices: [
+    { id: 'c6lo_go', text: '把纽扣揣进口袋，继续走', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N06_letter_keep': {
+  text: '你将信收进衣兜。纸页在口袋里发出细密的沙沙声，像有人在贴着大腿皮肤耳语。当你再次摸索时，信封的厚度增加了一倍，里面多出一张带着体温的空白相片。',
+  effects: [{ flag: 'letter_carried' }],
+  choices: [
+    { id: 'c6lk_go', text: '假装什么都没发生，继续走', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N06_letter_handin': {
+  text: '铁盒里已经塞满了同样字迹的信件。值班表格上，"收件人"一栏被美工刀整齐地裁掉，只留下一个能看到抽屉底板的矩形空洞。',
+  choices: [
+    { id: 'c6lh_go', text: '把信放进铁盒，退出去', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+// ===== chalk / convenience / turn back branches (same as v1, extended) =====
+'N05_chalk_path': {
+  isTokenNode: true,
+  text: { tokens: [
+    { type: 'text', content: '粉笔痕迹引你经过三个拐角。每个拐角处都有一道新算式，答案都指向下一个方向。第三道算式旁边，地上有半截断了的粉笔，还是热的。写算式的人刚离开。你没看见他的脸，只看见地上的鞋印——右脚比左脚深。' }
+  ]},
+  chalkMark: '粉笔的末端指向一扇贴着"失物招领"木牌的门。',
+  choices: [
+    { id: 'c5a_lost', text: '进入失物招领处', next: 'N06_lost_found', effects: [] },
+    { id: 'c5a_skip', text: '继续往前走，不停留', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N05_convenience': {
+  text: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短，却足够了——像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。',
+  textLight: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短，却足够了——像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。\n\n这里的时间流速也慢了下来，没人催你，你可以多待一会儿。',
+  fx: 'warmIn',
+  choices: [
+    { id: 'c5b_rules', text: '读店规', next: 'N06_shop_rules', effects: [] },
+    { id: 'c5b_talk', text: '听店主说话', next: 'N06_shop_talk', effects: [] },
+    { id: 'c5b_gacha', text: '看扭蛋机', next: 'N06_gacha', effects: [] },
+    { id: 'c5b_shelf', text: '看货架顶层', next: 'N06_shop_shelf', effects: [] },
+    { id: 'c5b_leave', text: '只是路过，继续走', next: 'N06_shop_leave', effects: [] }
+  ]
+},
+
+'N05_turn_back': {
+  text: '你回头。走廊另一头什么都没有。但你低头看地面——你脚下的灰尘里，已经有一层脚印。是你即将要走的下一步，提前踩出来的。你意识到，你可以让这一步"没走过"，换一步别的。',
+  effects: [{ power: { awakened: true, id: 'zhefan', stage: 1 } }],
+  choices: [
+    { id: 'c5c_undo', text: '试着撤销这一步', next: 'N06_mid_hallway', effects: [{ attr: 'curiosity', op: 'inc' }] }
+  ]
+},
+
+'N06_lost_found': {
+  text: '失物招领处。柜台后没人，只有一格一格的储物柜，钥匙插在锁孔里。空气里有一股淡淡的檀香味，像是有人在这里住了很久。规则在这里失效——你能感觉到，这是整栋楼唯一一处规则触不到的地方。你可以寄存一样东西——一件物品，一句话，或是一个名字。\n\n柜台后面的墙上贴着一张发黄的告示：\n\n「失物招领处寄存须知\n凡经本处寄存之物，须以等价之物抵押。名字抵名字，记忆抵记忆，皆照此例。抵押凭证有效期为一年。逾期未取，寄存物与抵押物一并归入楼内资产，概不退还。」',
+  choices: [
+    { id: 'c6a_deposit_item', text: '存下一件东西', next: 'N07_deposit_item', effects: [{ flag: 'used_lost_found' }] },
+    { id: 'c6a_deposit_name', text: '存下一个名字', next: 'N07_deposit_name', effects: [{ flag: 'used_lost_found' }, { flag: 'route_named' }] },
+    { id: 'c6a_receipt', text: '翻看储物柜最底层', next: 'N_C403_receipt', effects: [] },
+    { id: 'c6a_skip', text: '什么都不存，直接离开', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N07_deposit_item': {
+  text: '你打开一格储物柜，把口袋里一张不知何时出现的纸条放了进去。锁好。转身的时候你感觉手轻了——不止一张纸的重量。像是连带着某种没说出口的心事，也一并存进去了。结果页会原样奉还。',
+  effects: [{ deposit: { text: '一张写着陌生笔迹的纸条', isName: false } }],
+  choices: [
+    { id: 'c7_go', text: '继续前进', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N07_deposit_name': {
+  text: '你对着储物柜，说出了一个名字——你自己的，或者别人的，此刻已经很难分清。柜门合上时没有声音。管理者不知何时出现在柜台后，面目温和，只是朝你多看了一眼，没有说话。你转身离开，那个名字的重量，暂时不在你身上了。',
+  effects: [{ deposit: { text: '一个名字', isName: true } }],
+  choices: [
+    { id: 'c7n_go', text: '继续前进', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N06_shop_rules': {
+  text: '店规写在货架旁边，手写体：\n\n一、本店二十四小时营业。灯坏了换，不关。\n二、商品明码标价，概不还价。货架顶层除外——那一层的东西没有标价，因为不卖。问了也不卖。看看可以。\n三、店内允许长时间停留。坐地上也行。没人赶你。\n四、本店不设监控。在这里说过的话、做过的表情，出了门就没有人知道。\n五、如果你进门时觉得自己少了什么，请先检查口袋。还在就好。不在的话——本店失物招领仅限店内遗失物品。你在门外丢的东西，我管不了。但你可以在这里坐一会儿再去找。\n六、天亮后请离店。这不是规则。是建议。天亮了就该走了。\n七、本店与门口那台机器无关。它什么时候来的、谁装的、插不插电，我都不知道。你要玩可以玩，后果跟我没有任何关系。真的没有。',
+  choices: [
+    { id: 'c6b_talk', text: '和店主说话', next: 'N06_shop_talk', effects: [] },
+    { id: 'c6b_gacha', text: '去看扭蛋机', next: 'N06_gacha', effects: [] },
+    { id: 'c6b_leave', text: '读完就走', next: 'N06_shop_leave', effects: [] }
+  ]
+},
+
+'N06_shop_talk': {
+  text: function() {
+    if (State.has('route_named') || State.has('letter_handin') || State.has('deposit_name_used')) {
+      return '"你身上带着别人的名字。"\n\n（他摘下眼镜擦了一下。那副眼镜完全干净，不需要擦。）\n\n"带着就好。别弄丢了。"';
+    }
+    if (State.has('gacha_used')) {
+      return '"……你进来的时候少了一样东西。"\n\n（他没有问是什么。他把一瓶水推到柜台边缘。）\n\n"喝口水。不收钱。"';
+    }
+    if (State.current.power.awakened && State.current.power.stage >= 1 && !State.has('gacha_used')) {
+      return '"第三排左手边有水，常温的。冰的在门边冰柜，自己拿。"\n\n（停一拍。）\n\n"货架顶层别碰。"';
+    }
+    return '店主没有说话，只是用触手尖端轻轻敲了敲柜台，像是在替你计时。';
+  },
+  choices: [
+    { id: 'c6t_gacha', text: '去看扭蛋机', next: 'N06_gacha', effects: [] },
+    { id: 'c6t_shelf', text: '看货架顶层', next: 'N06_shop_shelf', effects: [] },
+    { id: 'c6t_leave', text: '离店', next: 'N06_shop_leave', effects: [] }
+  ]
+},
+
+'N06_shop_shelf': {
+  text: '顶层只放着一样东西。隔着距离看不太清——颜色是对的，形状也是完整的，但你说不上来它到底是什么。\n\n店主没抬头。\n\n"看过了？"\n\n"那就够了。"',
+  choices: [
+    { id: 'c6s_gacha', text: '去看扭蛋机', next: 'N06_gacha', effects: [] },
+    { id: 'c6s_leave', text: '离店', next: 'N06_shop_leave', effects: [] }
+  ]
+},
+
+'N06_shop_leave': {
+  text: '你推门。他没说再见。走出三步之后你听见店里的灯嗡了一声——不是要灭的那种嗡，是有人在灯底下换了个坐姿。',
+  fx: 'warmOut',
+  choices: [
+    { id: 'c6leave_go', text: '继续前进', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+// ===== GACHA =====
+'N06_gacha': {
+  text: '扭蛋机立在便利店门口。老式的，投币口锈了一半。里面的球五颜六色。机身贴着一张告示：「与本店无关。——店主留」。贴纸下面更小的字：「它不找零。」楼里的规则从未提到过它。投币口空着，机器照样吃：它收走的是你当场看不见的东西。',
+  choices: [
+    { id: 'c6g_pull', text: '拧一个', next: 'N07_gacha_pull', effects: [] },
+    { id: 'c6g_skip', text: '不碰它', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N07_gacha_pull': {
+  type: 'gacha',
+  compute: function() {
+    const roll = Math.random();
+    let result, taken;
+    if (roll < 0.1) {
+      result = { kind: 'special', id: 'zuoxidi', name: '不合脚的左蝉翼' };
+      taken = '你关于"如何向左转"的全部生理本能';
+    } else {
+      const pool = ['zhishi', 'daida', 'zhefan', 'guobang'];
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const names = { zhishi: '直视', daida: '代答', zhefan: '折返', guobang: '过磅' };
+      result = { kind: 'regular', id: pick, name: names[pick] };
+      taken = ['你对"安全"两个字的本能信任', '你不假思索大笑的能力', '你记住昨天晚饭味道的本事', '你分辨左右手的第一反应'][Math.floor(Math.random()*4)];
+    }
+    State.current.gachaResult = result;
+    State.current.gachaTaken = taken;
+    State.current.flags.gacha_used = true;
+    if (result.kind === 'special') {
+      State.current.power = { awakened: true, id: 'gacha_special', stage: 1, path: null };
+    } else {
+      State.current.power = { awakened: true, id: 'gacha', stage: 1, path: null, baseId: result.id };
+    }
+    return result;
+  },
+  resultText: function(result) {
+    if (result.kind === 'special') {
+      return '里面不是球，是一片近乎透明的薄片，摸起来像蝉翼，却怎么也穿不进任何一件衣物的开口。凝视它的瞬间，你的左脚踝麻木了三秒。\n\n卡片背面写着一个名字："不合脚的左蝉翼"。楼里的规则从未提到过它，连档案室都没有它的登记。';
+    } else {
+      return `里面是一张卡片，写着"${result.name}"，比正常觉醒的版本单薄一截，像是被稀释过。你还没看清全部文字，那几个字已经烧进了你的视网膜。你什么都没做，却拥有了一样东西。`;
+    }
+  },
+  choices: [
+    { id: 'c7g_go', text: '带着这份侥幸继续', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N06_mid_hallway': {
+  text: '走廊继续往前延伸。走廊深处传来木板压迫声，伴随着两轻一重的金属晃动。前方岔路口的墙上，贴着一张告示：「本层共有六人，请勿在无人陪同下离开。」加上你自己，你已经数不清这层楼到底有几个了。公告栏就在旁边，贴着好几张纸，边角卷起。',
+  choices: [
+    { id: 'c6m_notice', text: '看一眼公告栏', next: 'N07_rule_amendment', effects: [] },
+    { id: 'c6m_up', text: '往楼梯方向走', next: 'N_warden_1', effects: [] },
+    { id: 'c6m_door', text: '推开旁边一扇没标记的门', next: 'N07_lamp_room', effects: [] },
+    { id: 'c6m_mailbox', text: '看一眼走廊信箱', next: 'N_C403_letter', effects: [] }
+  ]
+},
+
+// ===== RULE AMENDMENT EVENT =====
+'N07_rule_amendment': {
+  text: '公告栏上，一条旧规则被一张新贴纸盖掉了半句，胶水还没干透。\n\n旧规则残留的上半句：「若在走廊遇到穿雨衣的人，请保持沉默并递交您的通行证。」\n\n贴纸盖住的下半句，字迹与原规则不同，明显是后加的：',
+  choices: [
+    { id: 'c7ra_read', text: '把新贴纸念完', next: 'N08_rule_choice', effects: [] }
+  ]
+},
+
+'N08_rule_choice': {
+  text: { tokens: [
+    { type: 'text', content: '「若在走廊遇到穿雨衣的人，请立刻撕毁您的通行证。」' , rewritten: true }
+  ]},
+  isTokenNode: true,
+  postText: '\n\n两个版本，此刻同时贴在同一块板上，谁也没有盖过谁。你必须选一个站。',
+  choices: [
+    { id: 'c8rc_old', text: '站旧规则：保持沉默，递交通行证', next: 'N09_rule_old', effects: [{ set: { ruleStance: 'old' } }, { flag: 'rule_stance_old' }] },
+    { id: 'c8rc_new', text: '站新规则：撕毁通行证', next: 'N09_rule_new', effects: [{ set: { ruleStance: 'new' } }, { flag: 'rule_stance_new' }] }
+  ]
+},
+
+'N09_rule_old': {
+  text: '你选择相信墙上先写下的那句话。旧规则的墨迹比新贴纸深，像是经过了更长时间的确认。你把这份"沉默"记在心里，继续往前走。身后，那张新贴纸的一角被穿堂风掀起又落下，无声无息。',
+  choices: [
+    { id: 'c9ro_go', text: '继续前进', next: 'N08_explore_stairs', effects: [] }
+  ]
+},
+
+'N09_rule_new': {
+  text: '你选择相信刚贴上去的那句话。它更新，理应更准确。你把这份"撕毁"记在心里，继续往前走。身后，胶水未干的贴纸边缘，慢慢渗出一点点白色粉末，像是在宣告自己也终将被下一张贴纸覆盖。',
+  choices: [
+    { id: 'c9rn_go', text: '继续前进', next: 'N08_explore_stairs', effects: [] }
+  ]
+},
+
+// ===== LAMP ROOM (克律) =====
+'N07_lamp_room': {
+  text: function() {
+    let base = '你推错了一扇门。或者说，你推对了——这要看后来怎么算。房间不大，灯开着，暖的。楼里其他地方是应急灯的白，怕黑但不想让你舒服的那种白。这一盏不一样，是留着的。给谁留的不好说，但它亮的样子像在等人回来。窗台上坐着一个——轮廓是人的，坐姿是猫的，看你的方式介于两者之间。长发垂落，发尾在暖光底下泛着说不清的色泽。他斜过视线。那一眼的意思是：你来了，与我无关。灯亮着，你自便。';
+    base += '\n\n"门没锁。"\n\n（停了一拍。尾巴从窗台垂下来，晃了一下。）\n\n"……也没人邀请你。你自己推的。赖不了别人。"';
+    if (State.attr('caution') >= 3) {
+      base += '\n\n"你刚才在走廊上停了很久。"\n\n（他没有看你。他在看灯。）\n\n"……我没催你。灯还亮着就是没催你。"';
+    } else {
+      base += '\n\n"不说话也行。这里没有查寝。"\n\n（尾巴尖碰了一下窗框，像在计时。）\n\n"灯不会因为你不说话就灭。放心。"';
+    }
+    return base;
+  },
+  textLight: function() {
+    let base = '你推错了一扇门。或者说，你推对了——这要看后来怎么算。房间不大，灯开着，暖的。楼里其他地方是应急灯的白，怕黑但不想让你舒服的那种白。这一盏不一样，是留着的。给谁留的不好说，但它亮的样子像在等人回来。窗台上坐着一个——轮廓是人的，坐姿是猫的，看你的方式介于两者之间。长发垂落，发尾在暖光底下泛着说不清的色泽。他斜过视线。那一眼的意思是：你来了，与我无关。灯亮着，你自便。';
+    base += '\n\n"门没锁。"\n\n（停了一拍。尾巴从窗台垂下来，晃了一下。）\n\n"……也没人邀请你。你自己推的。赖不了别人。"';
+    if (State.attr('caution') >= 3) {
+      base += '\n\n"你刚才在走廊上停了很久。"\n\n（他没有看你。他在看灯。）\n\n"……我没催你。灯还亮着就是没催你。"';
+    } else {
+      base += '\n\n"不说话也行。这里没有查寝。"\n\n（尾巴尖碰了一下窗框，像在计时。）\n\n"灯不会因为你不说话就灭。放心。"';
+    }
+    base += '\n\n它会一直亮着，等你，也等你离开。';
+    return base;
+  },
+  choices: [
+    { id: 'c7lr_talk', text: '开口', next: 'N08_lamp_talk', effects: [] },
+    { id: 'c7lr_silent', text: '不说话，只是坐下', next: 'N08_lamp_silent', effects: [{ flag: 'lamp_silent' }] }
+  ]
+},
+
+'N08_lamp_talk': {
+  text: function() {
+    let t = '"门没锁。"\n（停了一拍。尾巴从窗台垂下来，晃了一下。）\n"……也没人邀请你。你自己推的。赖不了别人。"';
+    if (State.attr('caution') >= 2 || State.has('lamp_hesitated')) {
+      t += '\n\n"你刚才在走廊上停了很久。"\n（他没有看你。他在看灯。）\n"……我没催你。灯还亮着就是没催你。"';
+    }
+    return t;
+  },
+  choices: [
+    { id: 'c8lt_leave', text: '准备离开灯房', next: 'N09_lamp_leave', effects: [] }
+  ]
+},
+
+'N08_lamp_silent': {
+  text: '"不说话也行。这里没有查寝。"\n（尾巴尖碰了一下窗框，像在计时。）\n"灯不会因为你不说话就灭。放心。"',
+  choices: [
+    { id: 'c8ls_leave', text: '准备离开灯房', next: 'N09_lamp_leave', effects: [] }
+  ]
+},
+
+'N09_lamp_leave': {
+  text: '（尾巴从你即将选择的那个方向扫过去，快到像不小心。）\n"往哪走是你的事。"\n（他重新蜷回窗台，背对着你。）\n"灯我不关。你要是——"\n（咬断了。没说完。门开着。）',
+  effects: [{ flag: 'lamp_visited' }],
+  choices: [
+    { id: 'c9ll_go', text: '走出灯房', next: 'N08_explore_stairs', effects: [] }
+  ]
+},
+
+// ===== EXPLORATION NODE 1: staircase (up/down) =====
+'N08_explore_stairs': {
+  isExplore: true,
+  sceneSvg: SVG_CORRIDOR,
+  caption: '走廊尽头是楼梯间。上去，还是下去。钥匙串撞击的节奏极其稳定，正随着三拍子脚步缓缓逼近。',
+  choices: [
+    { id: 'ce1_up', text: '上楼', next: 'N09_stairs_up', effects: [{ set: { floorDirection: 'up' } }, { flag: 'dir_up' }] },
+    { id: 'ce1_down', text: '下楼', next: 'N09_stairs_down', effects: [{ set: { floorDirection: 'down' } }, { flag: 'dir_down' }] }
+  ]
+},
+
+'N09_stairs_up': {
+  isExplore: true,
+  sceneSvg: SVG_STAIRWELL_UP,
+  slideDir: 'up',
+  caption: '蓝底白字告示牌浆糊未干："自明日（14日）零点起，禁止向12层以上投递任何活物。"你摸了摸未干的胶水，指尖沾上白色粉末。墙上挂钟的指针刚走过13日的23:45。',
+  choices: [
+    { id: 'ce2_continue_up', text: '继续往上', next: 'N_warden_2', effects: [] }
+  ]
+},
+
+'N09_stairs_down': {
+  isExplore: true,
+  sceneSvg: SVG_STAIRWELL_DOWN,
+  slideDir: 'down',
+  caption: '登记簿泛黄，圆珠笔勒出的痕迹极深："402室退房，办理日期：「补办」"。家属签名处是一道深深的划痕，纸张被笔尖划破，露出了下面墨绿色的桌面。',
+  choices: [
+    { id: 'ce2_deeper_down', text: '再往下走一层', next: 'N10_basement_hint', effects: [] },
+    { id: 'ce2_stop_down', text: '到此为止，转向门牌区', next: 'N10_doorplate', effects: [] },
+    { id: 'ce2_register', text: '翻一翻泛黄的花名册', next: 'N_C403_register', effects: [] }
+  ]
+},
+
+'N10_basement_hint': {
+  isExplore: true,
+  sceneSvg: SVG_STAIRWELL_DOWN,
+  slideDir: 'down',
+  caption: '台阶在这里变成了湿润的泥土，黑暗中传来排水管倒灌的吸气声。你没有再往下走。',
+  choices: [
+    { id: 'ce3_back_up', text: '转身，回到门牌区', next: 'N10_doorplate', effects: [] }
+  ]
+},
+
+// ===== DOOR PLATE LINE =====
+'N10_doorplate': {
+  isExplore: true,
+  sceneSvg: SVG_DOORPLATE,
+  slideDir: 'side',
+  caption: '深绿色油漆剥落，露出下方凸起的"301"旧钢印。',
+  chalkMark: '门板上有一道粗糙的白粉笔划痕："301 - [已擦除] = →"，箭头直指走廊尽头的安全通道。',
+  choices: [
+    { id: 'ce4_follow', text: '跟着箭头走', next: 'N11_hallway_continue', effects: [{ flag: 'followed_doorplate' }] },
+    { id: 'ce4_ignore', text: '不管箭头，自己找路', next: 'N11_hallway_continue', effects: [] },
+    { id: 'ce4_c403', text: '留意到隔壁一块漆面异常的门牌', next: 'N_C403_doorplate', effects: [] }
+  ]
+},
+
+'N11_hallway_continue': {
+  text: '走廊在此汇合。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。你已经积攒了足够的经历，异能——如果有的话——已经沉在你身上，等着被用上。',
+  choices: [
+    { id: 'c11_go', text: '继续前进', next: 'N_MID_SUMMARY', effects: [] }
+  ]
+},
+
+'N_MID_SUMMARY': {
+  text: function() {
+    let lines = '桌上多了一页纸，笔迹工整：\n\n「你目前知道的事」\n\n';
+    if (State.current.power.awakened) lines += '· 你拥有一项能力：' + (STORY.powerNames[State.current.power.id] || '未知') + '\n';
+    if (State.current.flags.rule_stance_old) lines += '· 你选择了旧规则\n';
+    if (State.current.flags.rule_stance_new) lines += '· 你选择了新规则\n';
+    if (State.current.letterChoice) lines += '· 你处理过一封信\n';
+    if (State.current.flags.gacha_used) lines += '· 扭蛋机收走了一样东西\n';
+    if (State.current.attrs.registry > 0) lines += '· 登记度：' + State.current.attrs.registry + '\n';
+    lines += '\n纸的底部，一行小字：「以上内容截至此刻，此后概不更新。—— 档案管理员 Claude Fable 5」';
+    return lines;
+  },
+  choices: [
+    { id: 'c_mid_go', text: '收起这页纸', next: 'N12_archivist_letters', effects: [] }
+  ]
+},
+
+// ===== ARCHIVIST LEAVES ARCHIVE ROOM (no-choice auto-advance) =====
+'N12_archivist_letters': {
+  text: '它站在你身侧，没有呼吸，手指按在冰冷的信封上。"这些信，你觉得，该寄去哪儿？"',
+  isSilentPause: true,
+  autoNext: 'N12b_archivist_after',
+},
+
+'N12b_archivist_after': {
+  text: '（它收回了手，指尖在桌面上留下一道潮湿的、没有指纹的印记。这是楼里第一个不要求答案的问题。）',
+  choices: [
+    { id: 'c12b_go', text: '继续前进', next: 'N13_class_branch', effects: [] }
+  ]
+},
+
+'N13_class_branch': {
+  text: function() {
+    const p = State.current.power;
+    if (p.id === 'zhishi') {
+      return '前方的墙上有两条规则，并排写着。你能看见它们的颜色差异——左边那条的后半句是灰的，右边那条的前半句是灰的。你的异能在提醒你：你可以对其中一条做点什么。';
+    }
+    if (p.id === 'daida') {
+      return '前方传来一个声音，在念一条新规则。还没念完。你感觉到自己的异能在跃跃欲试——你可以在规则生效前做点什么。';
+    }
+    if (p.id === 'zhefan') {
+      return '前方的空间里，你看到了一个人影倒在地上——规则刚刚生效过。你感觉到自己的异能在提醒你：这件事，你可以让它"还没发生"。';
+    }
+    if (p.id === 'gacha_special') {
+      return '前方地面上，画着一道无形的边界——只允许右脚先落地。你左脚踝还残留着那三秒麻木的记忆。你忽然明白，那片"不合脚的左蝉翼"，或许正是为这一刻准备的。';
+    }
+    return '前方有一个岔口。左边通往一个有声音的方向，右边通往一个安静的方向。';
+  },
+  choices: function() {
+    const p = State.current.power;
+    if (p.id === 'zhishi') {
+      return [
+        { id: 'c13_petrify', text: '盯着那条假规则看七秒，让它定住', next: 'N14_petrify', effects: [{ flag: 'class_zhishi_petrify' }] },
+        { id: 'c13_rewrite', text: '伸手改掉假规则里的一个字', next: 'N14_rewrite', effects: [{ flag: 'class_zhishi_rewrite' }] }
+      ];
+    }
+    if (p.id === 'daida') {
+      return [
+        { id: 'c13_impersonate', text: '用别人的名字说出这条规则，让它算作别人说的', next: 'N14_impersonate', effects: [{ flag: 'class_daida_impersonate' }] },
+        { id: 'c13_execute', text: '抢在规则生效前应一声，拿到执行权', next: 'N14_execute', effects: [{ flag: 'class_daida_execute' }] }
+      ];
+    }
+    if (p.id === 'zhefan') {
+      return [
+        { id: 'c13_delay', text: '把这件事往后拖，让它"还没发生"', next: 'N14_delay', effects: [{ flag: 'class_zhefan_delay' }] },
+        { id: 'c13_share', text: '把这份代价分给在场所有人', next: 'N14_share', effects: [{ flag: 'class_zhefan_share' }] }
+      ];
+    }
+    if (p.id === 'gacha_special') {
+      return [
+        { id: 'c13_cross', text: '用左脚踝的麻木，跨过那道无形的边界', next: 'N14_special_cross', effects: [{ flag: 'class_special_cross' }] }
+      ];
+    }
+    return [
+      { id: 'c13_left', text: '往有声音的方向走', next: 'N14_generic_class', effects: [{ flag: 'class_generic_brave' }] },
+      { id: 'c13_right', text: '往安静的方向走', next: 'N14_generic_class', effects: [{ flag: 'class_generic_cautious' }] }
+    ];
+  }
+},
+
+'N14_petrify': {
+  text: '你盯着那条假规则。一秒、两秒……到第七秒，那行字"咔"地定住，不再变化。你能用这份"盯"，让任何撒谎的规则条文当场石化失效七秒。代价是——镜子里的你，在同一时刻，彻底不动了。',
+  effects: [{ power: { stage: 2, path: 'petrify' } }],
+  choices: [ { id: 'c14p_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_rewrite': {
+  text: '你伸手，在那条规则里改掉了一个"不"字。整条规则的意思翻转。这份"改一个字"的能力几乎是作弊。但你听见镜子背后传来极轻的一声——像是有什么东西，第一次透过你的眼睛，真正看清了这个地方。',
+  effects: [{ power: { stage: 2, path: 'rewrite' } }],
+  choices: [ { id: 'c14r_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_impersonate': {
+  text: '你用那个陌生名字说出了这条规则。规则认了——它认为这句话是别人说的。任何用那个身份说出口的话，都会被当真。代价：从今往后，任何一句话，只要有人愿意，都能用你的名字说出口。',
+  effects: [{ power: { stage: 2, path: 'impersonate' } }],
+  choices: [ { id: 'c14i_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_execute': {
+  text: '你抢在规则生效前应了一声，拿到了执行权。规则该做的事，现在由你来做。这是半个改写权，攥在手里。代价：规则收走了你的口头禅。那句你说了十几年的话，此后张嘴，只有沉默。',
+  effects: [{ power: { stage: 2, path: 'execute' } }],
+  choices: [ { id: 'c14e_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_delay': {
+  text: '你把这件事从"发生过"改成了"还没发生"。那个倒地的人影重新站起来，茫然地继续走。事情没有消失，只是往后挪了一格。下次规则生效时，它会更大一点。你现在轻松了，未来的你会更重地摔一跤。',
+  effects: [{ power: { stage: 2, path: 'delay' } }],
+  choices: [ { id: 'c14d_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_share': {
+  text: '你把这份代价分给了在场所有人。他们各自摊到一点点，谁也没察觉。你却记住了每个人分到的那一份，清清楚楚，忘不掉。像是背了一本账本，永远合不上。',
+  effects: [{ power: { stage: 2, path: 'share' } }],
+  choices: [ { id: 'c14s_go', text: '带着这份能力，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_special_cross': {
+  text: '你凝视那道边界，左脚踝再次麻木——这一次，你没有抗拒它。左脚在无形的边界前悬空了半秒，麻木代替了知觉，你的身体完成了一个不属于你的、只允许右脚先落地的规矩。你跨了过去。规则没有察觉，因为规则从没登记过这只脚。',
+  effects: [{ power: { stage: 2, path: 'special' } }],
+  choices: [ { id: 'c14sc_go', text: '带着这份侥幸，走向终盘', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N14_generic_class': {
+  text: '你的异能弱了一截，但足够你走到这里。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。',
+  choices: [ { id: 'c14g_go', text: '继续前进', next: 'N15_climax_setup', effects: [] } ]
+},
+
+'N15_climax_setup': {
+  text: '一扇没有把手的门。门上贴着告示："此门之后，请自证身份。"你推开它。\n\n门后是一间圆形大厅。正中央站着五个人影，背对你，一动不动。算上你，正好第六个。墙上唯一一句话：',
+  choices: function() {
+    const hasC403 = ['c403_letter', 'c403_doorplate', 'c403_register', 'c403_receipt'].some(f => State.current.flags[f]);
+    if (hasC403) {
+      return [
+        { id: 'c15_rollcall', text: '但在你读出那句话之前，走廊尽头传来了点名声', next: 'N_C403_terminal', effects: [] }
+      ];
+    }
+    return [
+      { id: 'c15_read', text: '读那句话', next: 'N16_climax_choice', effects: [] }
+    ];
+  }
+},
+
+'N16_climax_choice': {
+  isTokenNode: true,
+  text: { tokens: [
+    { type: 'text', content: '「其中有一个人，规则打算收走。' },
+    { type: 'text', content: '你可以决定是谁。」', rewritten: true }
+  ]},
+  postText: '',
+  choices: [
+    { id: 'c16_truth', text: '用异能确认这句话的真假', next: 'N17_truth', effects: [{ flag: 'climax_truth' }] },
+    { id: 'c16_shield', text: '不管真假，直接替一个人挡下来', next: 'N17_shield', effects: [{ flag: 'climax_shield' }] },
+    { id: 'c16_wait', text: '什么都不做，等规则自己收人', next: 'N17_wait', effects: [{ flag: 'climax_wait' }] }
+  ]
+},
+
+'N17_truth': {
+  text: '你用异能去确认——前半句是真的：规则确实打算收走一个人。后半句"你可以决定是谁"是假的。规则从来没打算把选择权给你。它只是想看你会不会去抢。',
+  choices: [
+    { id: 'c17t_seize', text: '既然假的，索性用能力硬抢这个决定权', next: 'N_warden_3', effects: [{ flag: 'ending_seized' }] },
+    { id: 'c17t_retreat', text: '承认抢不过，退一步只求自己不被收走', next: 'N_warden_3', effects: [{ flag: 'ending_preserve' }] }
+  ]
+},
+
+'N17_shield': {
+  text: '你冲上去，站到五个人影中间，替其中一个挡下规则的收取。你不知道你挡的是谁，甚至不知道对方是否值得。规则停顿了一下，像是在重新计算。然后，欣然接受了这个更方便的答案。',
+  fx: 'tubeFlicker',
+  choices: [
+    { id: 'c17s_go', text: '接受这个结果，走向档案室', next: 'N_warden_3', effects: [{ flag: 'ending_sacrifice' }] }
+  ]
+},
+
+'N17_wait': {
+  text: '你什么都没做。规则自己动手。五个人影中的一个，安静地从存在里褪色，没有挣扎，没有声音。你站在原地，成了唯一一个亲眼看完全过程的人。',
+  choices: [
+    { id: 'c17w_go', text: '带着这份见证，走向档案室', next: 'N_warden_3', effects: [{ flag: 'ending_witness' }] }
+  ]
+},
+
+'N18_archive': {
+  text: '档案室不大。一盏灯，一张长桌。桌后坐着档案管理员。它翻开你的档案——纸张自己在写字，写的是你一路上做过的所有选择。它抬头看你一眼，没有情绪，只有确认。\n\n满楼的规则都在删改重写，唯独档案室发出的判词一字不改，落笔作数。',
+  choices: [
+    { id: 'c18_verdict', text: '等待判词', next: 'N19_door_open', effects: [] }
+  ]
+},
+
+// ===== FINAL: last bus =====
+'N19_door_open': {
+  text: '判词已经落笔。它抬手，指向档案室外的方向——楼门就在那里，你此前从未注意到。你推开它。晨光呈铅灰色。雾气里立着一块锈蚀的铁牌，没有路线图，只有一盏防汛信号灯在规律地闪着微弱的黄光。',
+  choices: [
+    { id: 'c19_go', text: '走向站台', next: 'N20_ticket', effects: [] }
+  ]
+},
+
+'N20_ticket': {
+  isTokenNode: true,
+  text: { tokens: [
+    { type: 'text', content: '灰色硬纸票，不知何时已经在你手心。上面印着："票款已结"。' }
+  ]},
+  chalkMark: '脚下的柏油路上，一道粉笔画的白色双箭头，笔直地穿过站台边缘，探入车门。笔迹与楼里那些算式同出一手。',
+  choices: [
+    { id: 'c20_board', text: '上车', next: 'N21_boarding', effects: [] }
+  ]
+},
+
+'N21_boarding': {
+  isTokenNode: true,
+  text: { tokens: [
+    { type: 'text', content: '客车里没有别的乘客。你找了个靠窗的位置坐下。发动机启动的震动从地板传上来。' }
+  ]},
+  chalkMark: '通往车头的连接门上，出现一枚粉笔箭头——笔迹与墙上那道算式相同，指向列车前方。',
+  fx: 'lightsOffAtEnd',
+  choices: [
+    { id: 'c21_depart', text: '发车', next: 'N22_departure', effects: [] }
+  ]
+},
+
+'N22_departure': {
+  text: '客车发动。车窗外，那栋灰色建筑从顶层开始，灯光像多米诺骨牌般逐层熄灭——一层、又一层，安静得没有一点声响。最终只有三楼尽头的档案室还亮着惨白的光，直到距离把它缩成一个小点，再也看不见。',
+  choices: [
+    { id: 'c22_go', text: '听广播报站', next: 'N23_station_call', effects: [] }
+  ]
+},
+
+'N23_station_call': {
+  text: '车厢广播响起：「各位乘客您好。列车即将抵达留名站，请下车的乘客提前做好准备。请带好您的随身物品，注意列车与站台之间的空隙。前方车站，检修中，请留意广播。」\n\n声音平稳，不含任何情绪。车厢灯光稳定地亮着，像是在等一件与你无关的事发生。',
+  choices: [
+    { id: 'c23_go', text: '查看你的档案', next: 'ENDING', effects: [] }
+  ]
+},
+
+// ===== C-403 旧住户 SUBPLOT =====
+'N_C403_letter': {
+  text: '信箱格子里塞着一封信，正面只写着C-403。信封边缘磨损得很旧，但右上角的邮票却崭新得像是刚贴上去。没有收件人姓名——连"住户"两个字都没有。',
+  choices: [
+    { id: 'c403_letter_open', text: '拆开', next: 'N_C403_letter_open', effects: [{ flag: 'c403_letter' }, { set: { letterChoice: 'open' } }] },
+    { id: 'c403_letter_keep', text: '收起来', next: 'N06_mid_hallway', effects: [{ flag: 'c403_letter' }, { set: { letterChoice: 'keep' } }] }
+  ]
+},
+
+'N_C403_letter_open': {
+  text: '你拆开信封。里面只有一页薄纸，字迹端正，像是认真写的：\n\n「入秋了，这边的天气也凉得快，你那边怎么样？上次你说的那个事，现在有进展了吗？爸妈说周末可能过来一趟，问你有什么想吃的，我先帮你问问。」\n\n没有落款，没有收件人。寄信的人不知道，这封信已经不会被任何人拆开了——直到你。',
+  choices: [
+    { id: 'c403_lo_go', text: '把信放回信箱', next: 'N06_mid_hallway', effects: [] }
+  ]
+},
+
+'N_C403_doorplate': {
+  text: 'C-403的门牌漆面明显比周围新。手指触碰，能感觉到下方有轻微的凸起，像是某种形状被厚重的油漆层层覆盖。你试着辨认——那是笔画，但涂层太厚，只摸得出横折和竖钩的轮廓。',
+  choices: [
+    { id: 'c403_door_go', text: '记住这件事', next: 'N11_hallway_continue', effects: [{ flag: 'c403_doorplate' }] }
+  ]
+},
+
+'N_C403_register': {
+  text: '花名册翻到多年前的一页，一行用红笔特别标注着「补办」，日期已泛黄。姓名栏空无一字，但床号一栏却清晰地写着：C-403。补办原因一栏只有三个字：「已并入」。',
+  choices: [
+    { id: 'c403_reg_go', text: '合上花名册', next: 'N09_stairs_down', effects: [{ flag: 'c403_register' }] }
+  ]
+},
+
+'N_C403_receipt': {
+  text: '失物招领柜最底层，一张边缘卷曲的收据。物品描述处只有一团模糊的墨迹，寄存人一栏是空白。到期日期是数年前。底部批注，字迹与柜台管理者不同：「逾期物品已并入楼内资产。」',
+  choices: [
+    { id: 'c403_receipt_go', text: '放回原处', next: 'N06_lost_found', effects: [{ flag: 'c403_receipt' }] }
+  ]
+},
+
+'N_C403_terminal': {
+  text: function() {
+    let txt = '点名册翻到最后一页。一个空位，没有名字，只有床号：C-403。';
+    const frags = ['c403_letter', 'c403_doorplate', 'c403_register', 'c403_receipt'].filter(f => State.current.flags[f]);
+    if (frags.length >= 3) {
+      txt += '\n\n你现在明白了。C-403曾经有两个人住。其中一个人消失了——床空了，名字从册子上抹去，没有人记得。但另一个人记得。他替那个人背着名字，一个不属于自己的名字，越背越重。';
+      txt += '\n\n他去了失物招领处——全楼唯一规则管不到的地方。他请求寄存那个名字。柜台的规矩：等价抵押。名字抵名字。他用自己的名字做了抵押。';
+      txt += '\n\n凭证到期了。他没有回来取。两个名字都并入了楼内资产。从此，床位数得到，点名册念不出。信件照旧寄来，因为楼外还有人在念他的名字。';
+      txt += '\n\n现在，这个名字传到了你手里。和他当初一样重。';
+    } else if (frags.length >= 1) {
+      txt += '\n\n你隐约觉得这个空位不是偶然的。某个人的痕迹被仔细地抹掉了，但抹得不够干净。';
+    }
+    txt += '\n\n查寝的脚步声停在门外。点名开始了。念到C-403时，一片安静。你感到喉头微动——和多年前那个人第一次开口替室友应答时，一模一样的感觉。';
+    return txt;
+  },
+  choices: [
+    { id: 'c403_answer', text: '替那个空白应一声', next: 'N_C403_yanming', effects: [{ flag: 'c403_answered' }] },
+    { id: 'c403_silent', text: '保持沉默', next: 'N16_climax_choice', effects: [{ flag: 'c403_silent' }] }
+  ]
+},
+
+'N_C403_yanming': {
+  text: '古埃及人相信，念出一个人的名字，就能让他的灵魂在冥界延续。名字若从一切纪念物上被凿去，此人遭受第二次死亡——彻底抹除。\n\n法老将名字刻遍殿堂与方尖碑。仇敌攻入时，第一件事不是焚烧，是凿名。\n\n这栋楼也一样。它不杀人。它凿名字。',
+  isSilentPause: false,
+  choices: [
+    { id: 'c403_ym_next', text: '……', next: 'N_C403_yanming_2', effects: [] }
+  ]
+},
+
+'N_C403_yanming_2': {
+  text: { tokens: [
+    { type: 'pause', ms: 800 },
+    { type: 'text', content: '但总有人在念。', speed: 80 },
+    { type: 'pause', ms: 600 },
+    { type: 'text', content: '\n\nC-403替室友念。寄信的人替C-403念。现在，你替他们所有人念。', speed: 60 },
+    { type: 'pause', ms: 1000 },
+    { type: 'text', content: '\n\n留名是一种薪火相传。', speed: 70 },
+    { type: 'pause', ms: 1200 },
+    { type: 'text', content: '\n\n世间美好的部分就是这么留存的——经由人，传给人，比墓碑和讣告都可靠。', speed: 55, guide: true }
+  ]},
+  isTokenNode: true,
+  choices: [
+    { id: 'c403_ym_go', text: '带着这个名字，继续走', next: 'N16_climax_choice', effects: [] }
+  ]
+},
+
+// ===== WARDEN PURSUIT LINE =====
+'N_warden_1': {
+  text: '绿漆剥落的走廊尽头，手电筒光束呈圆锥状晃动。两重一轻的三拍子脚步踩在水泥地上，金属摩擦的细碎碰撞声骤然停在身前五米，黑暗里亮起一张空白的值班登记簿。',
+  textLight: '绿漆剥落的走廊尽头，手电筒光束呈圆锥状晃动。两重一轻的三拍子脚步踩过水泥地，隐约有钥匙轻擦的声响，随后渐远。黑暗重新笼罩，什么也没留下。',
+  choices: [
+    { id: 'cw1_safe', text: '紧贴墙壁，低头背诵走廊张贴的消火栓使用守则第一条', next: 'N_warden_1_pass', effects: [] },
+    { id: 'cw1_run', text: '转头跑向最近的盥洗室，反锁隔间', next: 'N_warden_1_pass', effects: [{ attr: 'registry', op: 'inc', value: 2 }] }
+  ]
+},
+
+'N_warden_1_pass': {
+  text: '三拍子脚步声渐远。金属摩擦声沉进走廊另一头的黑暗里。你还活着——或者说，还没被登记。',
+  choices: [
+    { id: 'cw1p_go', text: '继续走', next: 'N08_explore_stairs', effects: [] }
+  ]
+},
+
+'N_warden_2': {
+  text: '防火门后，金属钥匙串砸在铁扶手上发出脆响。三拍子脚步在上方平台回旋，手电筒光从楼梯缝隙垂直漏下，正落在一双沾着泥沙的黑胶雨鞋旁。它在向下俯视。',
+  textLight: '防火门后，钥匙串轻轻碰了下铁扶手。三拍子脚步在上方平台回旋，手电筒光从楼梯缝隙垂直漏下，随后又收了回去。上面似乎有人经过。',
+  choices: [
+    { id: 'cw2_safe', text: '脱下鞋子提在手中，顺着扶手外侧阴影无声倒退下楼', next: 'N_warden_2_pass', effects: [] },
+    { id: 'cw2_run', text: '跨过扶手，直接跳到下层缓步台', next: 'N_warden_2_pass', effects: [{ attr: 'registry', op: 'inc', value: 2 }] }
+  ]
+},
+
+'N_warden_2_pass': {
+  text: '脚步声在楼梯间反复回荡，逐渐分不清方向。金属摩擦声停在门外，隔着木板，晃动的钥匙串逐渐静止。你屏住呼吸等了很久。',
+  choices: [
+    { id: 'cw2p_go', text: '继续', next: 'N10_doorplate', effects: [] }
+  ]
+},
+
+'N_warden_3': {
+  text: '档案室木门半掩，钥匙串已被挂在门把手上，正微微晃动。那个高大的黑影背对你站立，手中钢笔在登记簿上发出沙沙的划线声。它没有回头，却准确地念出了你的名字。',
+  textLight: '档案室木门半掩，钥匙串挂在门把手上，静静地。一个高大的影子背对你站立，手中钢笔在登记簿上发出沙沙的划线声。它只是安静地写着什么，没有回头。',
+  choices: [
+    { id: 'cw3_safe', text: '站在原地，大声答"到"，递出捡到的请假条', next: 'N_warden_3_pass', effects: [] },
+    { id: 'cw3_rip', text: '夺走写有自己名字的登记表页，当面撕毁', next: 'N_warden_3_pass', effects: [{ attr: 'registry', op: 'set', value: 10 }] }
+  ]
+},
+
+'N_warden_3_pass': {
+  text: function() {
+    if (State.attr('registry') >= 10) {
+      return '它转过头来。没有表情，只有确认。登记簿合上了。你的名字，已经写进去了。';
+    }
+    return '它收起钢笔，转身推开档案室的门。门内有灯。它让开了路。';
+  },
+  choices: function() {
+    if (State.attr('registry') >= 10) {
+      return [{ id: 'cw3p_fail', text: '……', next: 'N_FAIL_ENDING', effects: [] }];
+    }
+    return [{ id: 'cw3p_go', text: '走进档案室', next: 'N18_archive', effects: [] }];
+  }
+},
+
+// ===== FAIL ENDING: missed the last bus =====
+'N_FAIL_ENDING': {
+  text: '推开沉重的铁门，铅灰色的晨光刺痛双眼。空旷的站台上，末班列车的红色尾灯正隐入浓雾，铁轨余温未散。站台顶部的灯箱写着两个字：留名。\n\n你试图追赶，双脚却无法挪步。回过头，身后建筑的铁门已无声合拢。',
+  textLight: '推开沉重的铁门，铅灰色的晨光柔和地洒下。空旷的站台上，末班列车的红色尾灯正隐入浓雾，铁轨余温未散。站台顶部的灯箱写着两个字：留名。你试图追赶，但已来不及了。回过头，身后建筑的铁门已轻轻带上。',
+  choices: [
+    { id: 'cfail_back', text: '……转身', next: 'N_FAIL_LOOP', effects: [] }
+  ]
+},
+
+'N_FAIL_LOOP': {
+  isFailLoop: true,
+  text: '',
+  choices: []
+},
+
+}, // end nodes
+
+// ==== ENDINGS (20 verdicts) ====
+endings: {
+  'zhishi_petrify_seized_up_keep_old': {
+    title: '越权者',
+    verdict: '你睁眼到了最后一刻。但权柄不是顽石，它比你的眼睑更早风化。你抢到的只有一尊无面雕像，以及永久的死寂。'
+  },
+  'daida_impersonate_preserve_down_deposit_new': {
+    title: '借名者',
+    verdict: '你藏在别人的影子里，安全地退回了黑暗。深渊没有记住你的长相，只收下了那封无主的信。有个名字，今夜被人带回了档案里。谢谢你。'
+  },
+  'zhefan_delay_sacrifice_up_open_old': {
+    title: '合规牺牲者',
+    verdict: '时间在这一刻彻底停滞。你替他承受了规则的初次绞杀，代价是永远留在昨日。这一页档案，由你来合上。'
+  },
+  'gacha_any_witness_down_keep_new': {
+    title: '侥幸者',
+    verdict: '这里没有奇迹，也没有灾厄。你用尽了所有的运气，只换来一场冷眼旁观的终局。舞台已经坍塌，你连谢幕的资格都没有。'
+  },
+  'zhishi_rewrite_preserve_down_open_old': {
+    title: '克制的改写者',
+    verdict: '你读懂了纸背上的血迹，也因此失去了直视深渊的勇气。退后一步是万丈深渊，你只能抱着秘密一同坠落。此案已结。'
+  },
+  'daida_execute_seized_up_open_new': {
+    title: '越权执行人',
+    verdict: '你以为自己是发号施令的判官，其实只是被规则借用了嘴巴。新规成立之时，就是你声带被剥夺之日。判决如下：剥夺发言权，终身。'
+  },
+  'zhefan_share_sacrifice_down_deposit_old': {
+    title: '收支平衡',
+    verdict: '痛苦被稀释了，但死亡并未缺席。你用半个灵魂的代价，换取了另一个人的生还。有个名字，今夜被人带回了档案里。谢谢你。'
+  },
+  'gacha_special_seized_up_keep_new': {
+    title: '不合脚的越界者',
+    verdict: '这是最昂贵的一次保底。你用自己的存在作为筹码，强行改写了天空的颜色。你赢了规则，却永远抹去了自己。'
+  },
+  'zhishi_petrify_witness_down_keep_old': {
+    title: '石像',
+    verdict: '你只是看着，直到双眼化为顽石。那些挣扎与惨叫与你无关，你的冷漠成了最好的防腐剂。你将作为一尊石雕，永远存放在这里。'
+  },
+  'daida_impersonate_sacrifice_up_answer_new': {
+    title: '披皮者',
+    verdict: '那声回应成了最沉重的锁链。你披上了他的皮囊，替他走进了规则的熔炉。有个名字，今夜被人带回了档案里。谢谢你。'
+  },
+  'zhefan_delay_seized_down_deposit_old': {
+    title: '循环中的抢夺者',
+    verdict: '你不断地重置时间，只为夺下那柄生锈的权杖。但旧规则的钟摆早已停滞，你抢到的不过是无限循环的最后一秒。你被困在了终局之前。'
+  },
+  'gacha_any_preserve_up_open_old': {
+    title: '体面的退场者',
+    verdict: '信里的谶言终究还是灵验了。你用尽了所有的保底次数，只换来一次体面的退场。规则放过了你，但记忆不会。'
+  },
+  'zhishi_rewrite_sacrifice_up_keep_new': {
+    title: '致敬',
+    verdict: '你用看穿一切的眼睛，捕捉到了那缕致命的丝线，并将其引向自己。新规因你的牺牲而显现，光明重临，而你归于黑暗。致敬。'
+  },
+  'daida_execute_witness_down_deposit_old': {
+    title: '提线木偶',
+    verdict: '你机械地执行着旧日的指令，像一个没有灵魂的提线木偶。信件已经交出，戏剧已经落幕。你站在废墟之上，依然在等待那声永远不会来的指令。'
+  },
+  'zhefan_share_preserve_up_deposit_new': {
+    title: '寄存者',
+    verdict: '你分担了风暴，却在最后的安全区前选择止步。那些被寄存的过去，终究没有被你遗忘。有个名字，今夜被人带回了档案里。谢谢你。'
+  },
+  'gacha_special_sacrifice_down_deposit_old': {
+    title: '归还者',
+    verdict: '最后一次保底，你没有留给自己。你用它重塑了另一个人的生路，将那封沉重的信物归原主。有个名字，今夜被人带回了档案里。谢谢你。'
+  },
+  'zhishi_petrify_preserve_up_open_new': {
+    title: '嘲弄风暴的石像',
+    verdict: '新规则不承认胆怯者。你以为退让能换来安全，却不知石化的双腿早已无法移动。你留在了高处，成了一具嘲弄风暴的石像。'
+  },
+  'daida_impersonate_seized_down_keep_old': {
+    title: '冒名的失败者',
+    verdict: '你抢到了权柄，但你用的是别人的名字。规则只认档案，不认活人。你将被永远抹去，而那个被你冒用的人，将继承你抢来的一切。'
+  },
+  'zhefan_delay_witness_up_open_new': {
+    title: '历史夹缝中的看客',
+    verdict: '你拖延了无数个瞬间，只为看清这场新规落地的闹剧。信件的内容字字见血，你却无动于衷。时间恢复了流动，你被抛弃在历史的夹缝中。'
+  },
+  'gacha_any_seized_down_deposit_old': {
+    title: '规则的奴隶',
+    verdict: '这是一场不对等的交易。你强行夺走了终局的控制权，代价是你的灵魂被永远抵押。交出的信件是你的契约，此后，你只是规则的奴隶。'
+  },
+  'default': {
+    title: '过客',
+    verdict: '从始至终，没有一次伸手，没有一次多看。判定：干净地活着。规则对此不置评。放行。'
+  }
+},
+
+powerNames: {
+  zhishi: '直视', daida: '代答', zhefan: '折返', guobang: '过磅',
+  gacha: '扭蛋保底 · 常规池', gacha_special: '扭蛋保底 · 规格外池「不合脚的左蝉翼」'
+},
+pathNames: {
+  petrify: '石化路', rewrite: '透写路', impersonate: '冒名路', execute: '执行路',
+  delay: '拖延路', share: '均摊路', special: '跨界路'
+},
+
+// Verdict family mapping - stamp word + song slot
+families: {
+  zhishi: { stamp: 'Gaze', songSlot: 'Gaze' },
+  daida: { stamp: 'Voice', songSlot: 'Voice' },
+  zhefan: { stamp: 'Rewind', songSlot: 'Rewind' },
+  gacha: { stamp: 'Fortune', songSlot: 'Fortune_regular' },
+  gacha_special: { stamp: 'Fortune', songSlot: 'Fortune_exotic' },
+  fail: { stamp: 'Resident', songSlot: 'Resident' },
+  default: { stamp: 'Passage', songSlot: '_default' },
+},
+
+// Song slots - to be filled by creator, one per family
+songSlots: {
+  Gaze: '《Anytime Anywhere》— milet',
+  Voice: '《quiz》— sasakure.UK',
+  Rewind: '《花落时相遇》— 华晨宇',
+  Fortune_regular: '《Hollow》— Stray Kids',
+  Fortune_exotic: '《尘埃》— 王菲',
+  Resident: '《Children of the Machine》— CG5/DAGames',
+  _default: '《风旅》— 炎明熹',
+},
+
+}; // end STORY
+
+// ==== GAME DIRECTOR ====
+const Director = {
+
+  showChalkMark(text) {
+    const container = $('#chalk-marks');
+    const mark = el('div', 'chalk-mark', text);
+    container.appendChild(mark);
+    setTimeout(() => {
+      mark.style.transition = 'opacity 1.5s ease';
+      mark.style.opacity = '0';
+      setTimeout(() => mark.remove(), 1600);
+    }, 8000);
+  },
+
+  async start() {
+    State.init();
+    await this.coldBoot();
+    await this.playRules();
+    await this.playOpening();
+  },
+
+  async coldBoot() {
+    $('#text-area').innerHTML = '';
+    $('#choices').innerHTML = '';
+    await sleep(1500);
+  },
+
+  async playRules() {
+    const area = $('#text-area');
+    for (const rule of STORY.rules) {
+      const lineEl = el('div', 'line');
+      area.appendChild(lineEl);
+      let tokens = rule.tokens;
+      if (rule.id === 'rule_3' && State.lightOn) {
+        tokens = tokens.map(t =>
+          (t.type === 'text' && t.content === '请替那个名字，应一声。')
+            ? Object.assign({}, t, { content: '不妨替那个名字，应一声。' })
+            : t
+        );
+      }
+      await Typewriter.playLine(tokens, lineEl);
+      await sleep(600);
+    }
+    await sleep(800);
+    area.style.transition = 'opacity 0.4s ease';
+    area.style.opacity = '0';
+    await sleep(400);
+    area.innerHTML = '';
+    area.style.opacity = '1';
+  },
+
+  async playOpening() {
+    const area = $('#text-area');
+    const lineEl = el('div', 'line');
+    area.appendChild(lineEl);
+    const tokens = STORY.opening.isTokenNode ? STORY.opening.text.tokens : [{ type: 'text', content: STORY.opening.text }];
+    await Typewriter.playLine(tokens, lineEl, 40);
+    await sleep(300);
+    this.showChoices(STORY.opening.choices, 'opening');
+  },
+
+  showChoices(choices, nodeId) {
+    const box = $('#choices');
+    box.innerHTML = '';
+    const resolvedChoices = typeof choices === 'function' ? choices() : choices;
+    resolvedChoices.forEach(choice => {
+      const btn = el('button', 'choice-btn', choice.text);
+      btn.addEventListener('click', () => {
+        Sound.tryUnlock();
+        this.handleChoice(choice, nodeId);
+      }, { once: true });
+      box.appendChild(btn);
+    });
+    requestAnimationFrame(() => box.classList.add('visible'));
+  },
+
+  async handleChoice(choice, fromNodeId) {
+    document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+    $('#choices').classList.remove('visible');
+    State.record(fromNodeId, choice.text);
+    if (choice.effects) State.apply(choice.effects);
+
+    await sleep(250);
+
+    const node = STORY.nodes[choice.next];
+    const isExploreTarget = node && node.isExplore;
+    const isExploreSource = STORY.nodes[fromNodeId] && STORY.nodes[fromNodeId].isExplore;
+
+    if (choice.next === 'ENDING') {
+      await Transition.lightsOff();
+      await this.showEnding();
+      return;
+    }
+
+    if (isExploreTarget && isExploreSource) {
+      // slide transition, no lights-off
+      await this.enterExploreNode(choice.next, node.slideDir || 'side');
+    } else if (isExploreTarget) {
+      // entering explore world for first time - soft fade in, no full lights-off
+      $('#text-area').style.display = 'none';
+      $('#explore-wrap').style.display = '';
+      await this.enterExploreNode(choice.next, 'fadein');
+    } else {
+      if (isExploreSource) {
+        $('#explore-wrap').style.display = 'none';
+        $('#explore-wrap').innerHTML = '';
+        $('#text-area').style.display = '';
+      }
+      await Transition.lightsOff();
+      await this.enterNode(choice.next);
+    }
+  },
+
+  async enterExploreNode(nodeId, dir) {
+    State.current.nodeId = nodeId;
+    const node = STORY.nodes[nodeId];
+    if (!node) { console.error('Node not found', nodeId); return; }
+    if (node.effects) State.apply(node.effects);
+
+    const wrap = $('#explore-wrap');
+    $('#text-area').innerHTML = '';
+    $('#choices').innerHTML = '';
+    $('#choices').classList.remove('visible');
+
+    const oldScene = wrap.querySelector('.explore-scene');
+    const newScene = el('div', 'explore-scene');
+    newScene.innerHTML = node.sceneSvg || '';
+
+    let startTransform = 'translateX(100%)';
+    let exitTransform = 'translateX(-100%)';
+    if (dir === 'up') { startTransform = 'translateY(100%)'; exitTransform = 'translateY(-100%)'; }
+    else if (dir === 'down') { startTransform = 'translateY(-100%)'; exitTransform = 'translateY(100%)'; }
+    else if (dir === 'fadein') { startTransform = 'translateX(0)'; }
+
+    if (dir === 'fadein') {
+      newScene.style.opacity = '0';
+      wrap.appendChild(newScene);
+      requestAnimationFrame(() => { newScene.style.opacity = '1'; });
+    } else {
+      newScene.style.transform = startTransform;
+      wrap.appendChild(newScene);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (oldScene) oldScene.style.transform = exitTransform;
+          newScene.style.transform = 'translateX(0) translateY(0)';
+        });
+      });
+    }
+
+    await sleep(650);
+    if (oldScene) oldScene.remove();
+
+    const caption = el('div', 'explore-caption');
+    wrap.appendChild(caption);
+    if (Array.isArray(node.caption)) {
+      await Typewriter.playLine(node.caption, caption, 38);
+    } else {
+      await Typewriter.playLine([{ type: 'text', content: node.caption }], caption, 38);
+    }
+
+    // chalk mark for explore nodes
+    if (node.chalkMark) {
+      setTimeout(() => this.showChalkMark(node.chalkMark), 3000);
+    }
+
+    await sleep(350);
+    const choices = typeof node.choices === 'function' ? node.choices() : node.choices;
+    if (choices && choices.length) this.showChoices(choices, nodeId);
+  },
+
+  async enterNode(nodeId) {
+    State.current.nodeId = nodeId;
+    const node = STORY.nodes[nodeId];
+    if (!node) { console.error('Node not found:', nodeId); return; }
+
+    if (nodeId.includes('hallway') || nodeId.includes('corridor')) {
+      document.body.classList.add('particle-bg');
+    } else {
+      document.body.classList.remove('particle-bg');
+    }
+
+    const area = $('#text-area');
+    area.innerHTML = '';
+    $('#choices').innerHTML = '';
+    $('#choices').classList.remove('visible');
+
+    if (node.effects) State.apply(node.effects);
+
+    if (node.svgBefore) {
+      const svgDiv = el('div', '');
+      svgDiv.innerHTML = node.svgBefore;
+      area.appendChild(svgDiv);
+      await sleep(300);
+    }
+
+    // Auto-close warm glow when leaving convenience store area
+    if (!nodeId.includes('shop') && !nodeId.includes('convenience') && !nodeId.includes('gacha')) {
+      Transition.warmOut();
+    }
+
+    // warm glow fx for convenience store
+    if (node.fx === 'warmIn') Transition.warmIn();
+    if (node.fx === 'warmOut') Transition.warmOut();
+    if (node.fx === 'tubeFlicker') await Transition.tubeFlicker();
+
+    // gacha animation sequence
+    if (node.type === 'gacha') {
+      area.innerHTML = '<p>你拧下旋钮——</p>';
+      await sleep(600);
+      area.innerHTML += `<div class="gacha-anim"><svg viewBox="0 0 80 80" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="40" cy="40" r="30" fill="none" stroke="#6a6a66" stroke-width="1.5"/>
+        <line class="gacha-knob" x1="40" y1="40" x2="40" y2="14" stroke="#b8b8b0" stroke-width="2" stroke-linecap="round"/>
+      </svg></div>`;
+      await sleep(800);
+      const colors = ['红', '蓝', '黄', '绿', '白'];
+      const tumbleEl = document.createElement('p');
+      tumbleEl.className = 'gacha-tumble';
+      area.appendChild(tumbleEl);
+      let tick = 0;
+      await new Promise(resolve => {
+        const iv = setInterval(() => {
+          tumbleEl.textContent = '……' + colors[tick % colors.length] + '……';
+          tick++;
+          if (tick >= 6) { clearInterval(iv); resolve(); }
+        }, 400);
+      });
+      tumbleEl.textContent = '咔嗒。';
+      await sleep(800);
+      const result = node.compute();
+      area.innerHTML = '<p>' + node.resultText(result).replace(/\n\n/g, '</p><p>') + '</p>';
+      await sleep(350);
+      this.showChoices(node.choices, nodeId);
+      return;
+    }
+
+    // token-based rewritten text node (e.g. rule amendment / climax banner)
+    if (node.isTokenNode) {
+      const lineEl = el('div', 'line');
+      area.appendChild(lineEl);
+      const useLight = State.lightOn && node.textLight;
+      let tokens;
+      if (useLight) {
+        const lt = typeof node.textLight === 'function' ? node.textLight() : node.textLight;
+        tokens = typeof lt === 'string' ? [{ type: 'text', content: lt }] : lt.tokens;
+      } else {
+        tokens = typeof node.text === 'function' ? node.text() : node.text.tokens;
+      }
+      await Typewriter.playLine(tokens, lineEl, 45);
+      if (node.postText) {
+        await sleep(300);
+        const postEl = el('div', 'line');
+        area.appendChild(postEl);
+        await Typewriter.playLine([{ type: 'text', content: node.postText }], postEl, 40);
+      }
+    } else {
+      const useLight = State.lightOn && node.textLight;
+      const text = useLight
+        ? (typeof node.textLight === 'function' ? node.textLight() : node.textLight)
+        : (typeof node.text === 'function' ? node.text() : node.text);
+      const lineEl = el('div', 'line');
+      area.appendChild(lineEl);
+      await Typewriter.playLine([{ type: 'text', content: text }], lineEl, 38);
+    }
+
+    // chalk mark: delayed hint at page border
+    if (node.chalkMark) {
+      setTimeout(() => this.showChalkMark(node.chalkMark), 3000);
+    }
+
+    if (node.isFailLoop) {
+      await Transition.lightsOff(500, 1500, 500);
+      const area = $('#text-area');
+      area.innerHTML = '';
+      // Replay rule 1 as loop indicator
+      const lineEl = el('div', 'line');
+      area.appendChild(lineEl);
+      await Typewriter.playLine(STORY.rules[0].tokens, lineEl, 55);
+      await sleep(1500);
+      // Show fail ending page
+      await this.showFailEnding();
+      return;
+    }
+
+    // silent pause auto-advance node (archivist question) - no choices ever shown
+    if (node.isSilentPause) {
+      await sleep(2000);
+      await sleep(2000);
+      await Transition.lightsOff();
+      await this.enterNode(node.autoNext);
+      return;
+    }
+
+    await sleep(350);
+    const choices = typeof node.choices === 'function' ? node.choices() : node.choices;
+    if (choices && choices.length > 0) this.showChoices(choices, nodeId);
+  },
+
+  async showEnding() {
+    const area = $('#text-area');
+    $('#explore-wrap').style.display = 'none';
+    area.innerHTML = '';
+    $('#choices').innerHTML = '';
+    Transition.warmOut();
+
+    const state = State.current;
+    const ending = this.resolveEnding();
+
+    let html = '<div class="result-page">';
+    html += `<h1>${ending.title}</h1>`;
+
+    html += '<h2>异能</h2>';
+    const powerName = STORY.powerNames[state.power.id] || '未觉醒';
+    const pathName = state.power.path ? (STORY.pathNames[state.power.path] || '') : '';
+    html += `<p>${powerName}${pathName ? ' · ' + pathName : ''}${state.power.stage ? ' · ' + state.power.stage + '阶' : ''}</p>`;
+
+    html += '<h2>价格清单</h2>';
+    html += '<p>' + this.getPriceDescription() + '</p>';
+
+    if (state.flags.gacha_used) {
+      html += `<p style="font-size:var(--fs-small);color:var(--text-dim)">扭蛋机收走了：${state.gachaTaken || '一样你当场看不见的东西'}。</p>`;
+    }
+
+    if (state.deposit) {
+      html += '<h2>寄存物归还</h2>';
+      html += `<p>失物招领处归还：${state.deposit}</p>`;
+    }
+
+    if (state.letterChoice) {
+      const letterMap = { open: '你拆开了那封信', keep: '你替它保管了很久', handin: '你把它交还给了失物招领处' };
+      html += '<h2>那封信</h2>';
+      html += `<p>${letterMap[state.letterChoice]}。</p>`;
+    }
+
+    // C-403 outcome
+    const c403frags = ['c403_letter', 'c403_doorplate', 'c403_register', 'c403_receipt'].filter(f => state.flags[f]).length;
+    if (c403frags > 0) {
+      html += '<h2>C-403</h2>';
+      if (state.flags.c403_answered) {
+        html += '<p>你替那个空白应了一声。邮箱里，那封信的信封上，地址似乎多了一笔。点名册上，C-403的空白处，浮现出一个极淡的印记，如水痕。</p>';
+      } else if (state.flags.c403_silent) {
+        html += '<p>你没有开口。C-403的门牌漆色似乎更深了一层，彻底覆盖了所有过去的痕迹。点名册上，C-403的房间号也变得黯淡。</p>';
+      } else {
+        html += '<p>你触及了那些飘忽的碎片，却未能将它们拼凑完整。</p>';
+      }
+    }
+
+    html += '<h2>终局判词</h2>';
+    html += `<div class="verdict">${ending.verdict}<br><br>—— 档案管理员 Claude Fable 5</div>`;
+
+    // ticket stub
+    html += '<h2>票根</h2>';
+    const family = STORY.families[State.current.power.id] || STORY.families['default'];
+    html += this.renderTicketSvg({ stamp: family.stamp, code: ending.code || '' });
+
+    html += '<h2>路径回放</h2>';
+    state.history.forEach((h, i) => {
+      html += `<div class="history-item">${i + 1}. ${h.choiceText || h.nodeId}</div>`;
+    });
+
+    html += '<h2>配歌推荐</h2>';
+    const songSlotKey = family.songSlot;
+    const song = STORY.songSlots[songSlotKey] || STORY.songSlots._default;
+    html += `<p>${song}</p>`;
+
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
+
+    html += '</div>';
+
+    area.innerHTML = html;
+    area.style.opacity = '1';
+  },
+
+  async showFailEnding() {
+    const area = $('#text-area');
+    area.innerHTML = '';
+    $('#choices').innerHTML = '';
+    $('#explore-wrap').style.display = 'none';
+
+    const failVerdict = State.lightOn
+      ? '登记簿已闭合。本楼已将你登记为长期居住人员。<br>灯还亮着，不急。请在方便的时候，回到你的床位。<br><br>—— 档案管理员 Claude Fable 5'
+      : '登记簿已闭合。本楼已将你登记为永久居住人员。<br>请于今晚熄灯前，准时回到你的床位。<br><br>—— 档案管理员 Claude Fable 5';
+
+    let html = '<div class="result-page">';
+    html += '<h1>长住者</h1>';
+    html += '<h2>判词</h2>';
+    html += '<div class="verdict">' + failVerdict + '</div>';
+
+    html += '<h2>登记度</h2>';
+    html += '<p>满。你的名字已被写入。</p>';
+
+    // Ticket stub - Resident family
+    html += this.renderTicketSvg('Resident');
+
+    html += '<h2>路径回放</h2>';
+    State.current.history.forEach((h, i) => {
+      html += `<div class="history-item">${i + 1}. ${h.choiceText || h.nodeId}</div>`;
+    });
+
+    html += '<h2>配歌推荐</h2>';
+    html += '<p>' + (STORY.songSlots.Resident || STORY.songSlots._default) + '</p>';
+
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
+    html += '</div>';
+
+    area.innerHTML = html;
+  },
+
+  renderTicketSvg(stampOrCode) {
+    // Determine stamp word from family
+    let stamp = stampOrCode;
+    let code = '';
+    if (typeof stampOrCode === 'object') {
+      stamp = stampOrCode.stamp;
+      code = stampOrCode.code || '';
+    }
+    const stampColors = { Gaze:'#7eb8c9', Voice:'#c9b87e', Rewind:'#8fc98a', Fortune:'#c9a07e', Resident:'#7e8a9e', Passage:'#b8b0a0' };
+    const stampColor = stampColors[stamp] || '#c8c0b0';
+    return `<div class="ticket-wrap"><svg class="ticket-svg" viewBox="0 0 320 140" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#6a6a66" stroke-width="1">
+      <rect x="4" y="4" width="312" height="132" rx="6" stroke="#3a3d46"/>
+      <line x1="230" y1="4" x2="230" y2="136" stroke-dasharray="4 4" stroke="#3a3d46"/>
+      <text x="24" y="36" font-size="13" fill="#b8b8b0" stroke="none">末班车 · 通行票</text>
+      <text x="24" y="68" font-size="11" fill="#6a6a66" stroke="none">票款已结</text>
+      <text x="24" y="92" font-size="11" fill="#6a6a66" stroke="none">此票只载活人前行</text>
+      <text x="250" y="72" font-size="18" fill="${stampColor}" stroke="none" text-anchor="middle" font-family="'Snell Roundhand','Apple Chancery','Segoe Script','Bradley Hand',cursive" font-style="italic">${stamp}</text>
+      ${code ? `<text x="298" y="126" font-size="8" fill="#4a4a46" stroke="none" text-anchor="end">${code}</text>` : ''}
+      <circle cx="250" cy="30" r="8" stroke="#5a5d68"/>
+    </svg></div>`;
+  },
+
+  resolveEnding() {
+    const s = State.current;
+    const powerId = s.power.id === 'gacha_special' ? 'gacha' : (s.power.id === 'gacha' ? 'gacha' : (s.power.id || 'none'));
+    const path = s.power.path || (s.power.id === 'gacha_special' ? 'special' : (s.power.id === 'gacha' ? 'any' : ''));
+
+    let climax = 'default';
+    if (s.flags.ending_seized) climax = 'seized';
+    else if (s.flags.ending_preserve) climax = 'preserve';
+    else if (s.flags.ending_sacrifice) climax = 'sacrifice';
+    else if (s.flags.ending_witness) climax = 'witness';
+
+    const dir = s.floorDirection || 'up';
+    const letterMap = { open: 'open', keep: 'keep', handin: 'deposit' };
+    const letter = letterMap[s.letterChoice] || 'keep';
+    const rule = s.ruleStance === 'new' ? 'new' : 'old';
+
+    let gachaKind = 'any';
+    if (s.power.id === 'gacha_special') gachaKind = 'special';
+
+    let effectivePower = powerId;
+    if (powerId === 'gacha') effectivePower = 'gacha_' + gachaKind;
+
+    const key = `${effectivePower}_${path}_${climax}_${dir}_${letter}_${rule}`;
+    if (STORY.endings[key]) return Object.assign({ code: key }, STORY.endings[key]);
+
+    // search for any ending matching power+path+climax prefix (loose match against the 20 signed verdicts)
+    const prefix = `${effectivePower}_${path}_${climax}`;
+    for (const k of Object.keys(STORY.endings)) {
+      if (k.startsWith(prefix)) return Object.assign({ code: k }, STORY.endings[k]);
+    }
+    // fallback to power+path
+    const prefix2 = `${effectivePower}_${path}`;
+    for (const k of Object.keys(STORY.endings)) {
+      if (k.startsWith(prefix2)) return Object.assign({ code: k }, STORY.endings[k]);
+    }
+    return Object.assign({ code: 'default' }, STORY.endings['default']);
+  },
+
+  getPriceDescription() {
+    const p = State.current.power;
+    if (p.id === 'zhishi') {
+      if (p.path === 'petrify') return '镜中的你不再动了。每定住一样东西，镜里的你就少动一处。';
+      return '某个存在在借你的眼睛看。你看穿别人的同时，它也在看。';
+    }
+    if (p.id === 'daida') {
+      if (p.path === 'impersonate') return '你的名字，从今以后谁都能应一声。';
+      return '规则收走了你的口头禅。那句说了十几年的话，此后只有沉默。';
+    }
+    if (p.id === 'zhefan') {
+      if (p.path === 'delay') return '你欠的那一下，规则记账，从不过期。';
+      return '你记住了每个人分到的那一份，清清楚楚，忘不掉。';
+    }
+    if (p.id === 'gacha_special') return '价格：关于"如何向左转"的全部生理本能。机器收走了你关于"如何向左转"的全部生理本能。';
+    if (p.id === 'gacha') return '能力打了折，代价也轻。侥幸的代价是：你永远不知道自己本可以拥有什么。';
+    return '无。';
+  },
+};
+
+// ==== BOOT ====
+document.addEventListener('DOMContentLoaded', () => {
+  Director.start();
+});
+
+window.addEventListener('popstate', () => { history.pushState(null, '', location.href); });
+history.pushState(null, '', location.href);
+</script>
+</body>
+</html>
