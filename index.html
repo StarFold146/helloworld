@@ -138,10 +138,16 @@ body{
   pointer-events:none;
 }
 .char-img.show,.char-img-wrap.show{opacity:1;transform:translateY(0)}
-#char-squid{right:8vw;height:24vh;width:auto;object-fit:contain}
-/* 宽度必须写死：两张表情图都是绝对定位，撑不起 width:auto 的父框，
-   框会塌成 0 宽，把立绘整个挤没。原图 2048x2048 是方的，所以宽等于高。 */
-#char-kelv{right:2vw;height:58vh;width:58vh}
+/* 同样按有效区反推：鱿鱼在图里只占 48.1% 宽、45.9% 高，中心偏左到 44.8%。
+   图宽 75vw 时它实高约 34vw，作为店主是「小东西」但看得清。
+   bottom 减掉的 34vw = 图底部 27.7vw 的空白 + 咬进对话框的那截。 */
+#char-squid{right:-13vw;width:75vw;height:75vw;object-fit:contain;bottom:calc(var(--dialog-h) - 34vw)}
+/* 这张方图周围有一大圈透明留白，人物只占 49.4% 宽、82.8% 高，中心还偏右到 57.7%，
+   所以尺寸不能按整图给——按 vh 给会让方框撑到 1.24 个屏宽，人物被顶到屏幕正中。
+   改成按屏宽算：图宽 105vw 时人物实宽约 52vw，高约 87vw；
+   right 取负值把左边那圈留白推出屏幕外，人物中心落在 72vw 处，偏右。
+   bottom 里减掉的 22vw = 图底部 15.6vw 的空白 + 往对话框里咬的那一截。 */
+#char-kelv{right:-16vw;width:105vw;height:105vw;bottom:calc(var(--dialog-h) - 22vw)}
 /* the two expression frames sit stacked exactly on top of each other inside the (already
    positioned/sized) wrapper, and cross-fade on their own faster timeline - independent of
    the wrapper's entrance/exit transition, and with zero positional difference between them. */
