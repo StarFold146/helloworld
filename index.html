@@ -30,42 +30,149 @@
   --tap-min:52px;
   --z-curtain:9999;
   --z-warm:5;
+  --dialog-h:30dvh;
 }
 html,body{
   height:100%;
-  background:var(--bg-base);
+  background:#000;
   color:var(--text-main);
   font-family:var(--font-main);
   font-size:var(--fs-body);
   line-height:var(--lh);
   -webkit-font-smoothing:antialiased;
   -webkit-tap-highlight-color:transparent;
-  overflow-x:hidden;
+  overflow:hidden;
 }
-#stage{
-  min-height:100dvh;
-  padding:calc(var(--safe-top) + var(--gutter)) var(--gutter) calc(var(--safe-bottom) + 80px);
-  max-width:var(--content-max);
-  margin:0 auto;
+body{
   display:flex;
-  flex-direction:column;
   justify-content:center;
+  align-items:stretch;
+}
+/* ==== app shell: everything lives inside this, absolutely positioned ==== */
+#app{
   position:relative;
+  width:100%;
+  height:100dvh;
+  max-width:100vw;
+  overflow:hidden;
+  background:#000;
+}
+@media (orientation:landscape){
+  #app{ max-width:min(480px,100vw); }
+}
+
+/* ==== layer 0: background photo, cross-fades ==== */
+#bg{
+  position:absolute;inset:0;
+  z-index:0;
+  background:#000;
+  overflow:hidden;
+  transition:opacity 0.4s ease;
+}
+#bg.hidden{opacity:0}
+.bg-layer{
+  position:absolute;inset:0;
+  background-size:cover;
+  background-position:center;
+  background-color:#000;
+  opacity:0;
+  transition:opacity 0.7s ease;
+}
+.bg-layer.active{opacity:1}
+#bg-vignette{
+  position:absolute;inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 56%, rgba(0,0,0,0.72) 100%);
+}
+
+/* ==== layer 1: full-screen character illustration (P1/P2/P3) ==== */
+#illust{
+  position:absolute;inset:0;
   z-index:1;
+  background:#000 center/contain no-repeat;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.6s ease;
 }
-#text-area{
-  min-height:40vh;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
+#illust.show{opacity:1}
+
+/* legacy inline image support (imgBefore, unused by current story data but kept as a safe fallback) */
+.illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
+.illust-wrap img{width:min(260px,64%);height:auto;mix-blend-mode:screen;opacity:0;animation:illustIn 1.6s ease forwards}
+@keyframes illustIn{to{opacity:1}}
+
+/* ==== character portrait layer: above #bg, below #dialog/#choices ==== */
+#char{
+  position:absolute;inset:0;
+  z-index:1;
+  pointer-events:none;
+  overflow:hidden;
+}
+/* shared entrance/exit lifecycle: fade + slight rise, 400ms. Only (re)triggered when the
+   active character KEY changes - staying on the same character across consecutive nodes
+   (e.g. two shop nodes in a row) never replays this. */
+.char-img,.char-img-wrap{
+  position:absolute;
+  bottom:calc(var(--dialog-h) - 3vh); /* bites 3vh into the dialog box - no gap between them */
+  opacity:0;
+  transform:translateY(12px);
+  transition:opacity 0.4s ease, transform 0.4s ease;
+  pointer-events:none;
+}
+.char-img.show,.char-img-wrap.show{opacity:1;transform:translateY(0)}
+#char-squid{right:8vw;height:24vh;width:auto;object-fit:contain}
+#char-kelv{right:2vw;height:58vh;width:auto}
+/* the two expression frames sit stacked exactly on top of each other inside the (already
+   positioned/sized) wrapper, and cross-fade on their own faster timeline - independent of
+   the wrapper's entrance/exit transition, and with zero positional difference between them. */
+#char-kelv img{
+  position:absolute;inset:0;
+  height:100%;width:auto;
+  object-fit:contain;
+  opacity:0;
+  transition:opacity 0.25s ease;
+}
+#char-kelv img.expr-active{opacity:1}
+
+/* N05_letter_found's envelope: floats above the background AND above the dialog box,
+   centered, independent of the text advancing underneath it. */
+#envelope-float{
+  position:absolute;
+  left:50%;top:36%;
+  transform:translate(-50%,-50%);
+  width:30vw;
+  z-index:4;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.5s ease;
+}
+#envelope-float.show{opacity:1}
+#envelope-float svg{width:30vw !important;height:auto !important;display:block;margin:0 !important}
+
+/* ==== layer 2: dialog box + choices overlay ==== */
+#dialog{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  z-index:2;
+  height:var(--dialog-h);
+  padding:18px var(--gutter) calc(var(--safe-bottom) + 16px);
+  background:rgba(10,10,13,0.82);
+  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:blur(8px);
+  border-top:1px solid rgba(255,255,255,0.12);
+  overflow:hidden;
+}
+#dialog-text{
+  height:100%;
+  overflow:hidden;
   white-space:pre-wrap;
-}
-.line{
-  margin-bottom:1.2em;
   color:var(--text-rule);
   letter-spacing:0.03em;
+  font-size:var(--fs-body);
+  line-height:var(--lh);
 }
-.line .cursor{
+.cursor{
   display:inline;
   animation:blink 1s step-end infinite;
   color:var(--text-dim);
@@ -76,34 +183,72 @@ html,body{
   font-family:var(--font-rewritten);
   letter-spacing:0.05em;
 }
-#choices{
-  margin-top:2em;
-  opacity:0;
-  transition:opacity 0.4s ease;
+.guide-hint{
+  font-weight:600;
+  color:#c8c0b0;
+  text-shadow:0 0 6px rgba(200,192,176,0.4), 0 0 12px rgba(200,192,176,0.15);
+  letter-spacing:0.04em;
 }
-#choices.visible{opacity:1}
+#dialog-next{
+  position:absolute;
+  right:16px;
+  bottom:calc(var(--safe-bottom) + 12px);
+  width:0;height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:9px solid var(--text-dim);
+  opacity:0;
+  transition:opacity 0.3s ease;
+  animation:nextFloat 1.4s ease-in-out infinite;
+}
+#dialog-next.show{opacity:0.85}
+@keyframes nextFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+
+#choices{
+  position:absolute;
+  left:50%;
+  top:42%;
+  transform:translateX(-50%);
+  width:min(88vw,480px);
+  max-height:26%;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  z-index:2;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+#choices.visible{opacity:1;pointer-events:auto}
 .choice-btn{
   display:block;
   width:100%;
   min-height:var(--tap-min);
-  padding:14px 18px;
-  margin-bottom:12px;
-  background:var(--bg-panel);
-  border:1px solid var(--border);
-  border-radius:10px;
+  padding:14px 20px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.22);
   color:var(--text-main);
   font-size:var(--fs-body);
   font-family:var(--font-main);
-  line-height:1.6;
-  text-align:left;
+  line-height:1.5;
+  text-align:center;
   cursor:pointer;
   touch-action:manipulation;
-  transition:background 0.15s,border-color 0.15s;
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  transform:translateY(8px);
+  transition:opacity 0.35s ease, transform 0.35s ease, background 0.15s, border-color 0.15s;
 }
-.choice-btn:active{background:var(--border);border-color:#3a3e4a}
-.choice-btn:disabled{opacity:0.4;pointer-events:none}
+.choice-btn.in{opacity:1;transform:translateY(0)}
+.choice-btn:active{background:rgba(255,255,255,0.22);border-color:rgba(255,255,255,0.4)}
+.choice-btn:disabled{opacity:0.35 !important;pointer-events:none}
+
+/* ==== curtain / warm glow (unchanged behaviour, repositioned into #app) ==== */
 #curtain{
-  position:fixed;inset:0;
+  position:absolute;inset:0;
   background:#000;
   opacity:0;
   pointer-events:none;
@@ -123,7 +268,7 @@ html,body{
   100%{opacity:0}
 }
 #warm-glow{
-  position:fixed;inset:0;
+  position:absolute;inset:0;
   z-index:var(--z-warm);
   pointer-events:none;
   opacity:0;
@@ -134,8 +279,11 @@ html,body{
     radial-gradient(ellipse at 100% 0%, rgba(201,138,75,0.18), transparent 60%);
 }
 #warm-glow.on{opacity:1}
+body.light-on{--bg-base:#141312;--text-main:#d4d0c8}
+body.light-on #warm-glow{opacity:0.25}
+
 #sound-toggle{
-  position:fixed;
+  position:absolute;
   top:calc(var(--safe-top) + 12px);
   right:12px;
   width:36px;height:36px;
@@ -143,41 +291,29 @@ html,body{
   color:var(--text-dim);
   font-size:18px;
   cursor:pointer;
-  z-index:100;
+  z-index:50;
   opacity:0.5;
 }
-/* character illustrations */
-#bg-illust{
-  position:fixed;inset:0;
-  z-index:0;
-  pointer-events:none;
-  background-repeat:no-repeat;
-  background-position:center 32%;
-  background-size:contain;
-  mix-blend-mode:screen;
-  filter:brightness(0.5);
-  opacity:0;
-  transition:opacity 2s ease;
+#light-toggle{
+  position:absolute;
+  top:calc(var(--safe-top) + 12px);
+  left:12px;
+  background:none;border:none;
+  font-size:18px;
+  color:var(--text-dim);
+  cursor:pointer;
+  opacity:0.4;
+  z-index:50;
+  transition:opacity 0.3s;
 }
-#bg-illust.show{opacity:0.55}
-#img-flash{
-  position:fixed;inset:0;
-  z-index:9000;
-  background:#000 center/contain no-repeat;
-  opacity:0;
-  pointer-events:none;
-  transition:opacity 0.25s ease;
-}
-#img-flash.on{opacity:1;transition:none}
-.illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
-.illust-wrap img{width:min(300px,72%);height:auto;mix-blend-mode:screen;opacity:0;animation:illustIn 1.6s ease forwards}
-@keyframes illustIn{to{opacity:1}}
+#light-toggle.on{opacity:0.8;color:#e8d5a0}
+
 #top-caption{
-  position:fixed;
-  top:calc(var(--safe-top) + 16px);
+  position:absolute;
+  top:calc(var(--safe-top) + 44px);
   left:0;right:0;
   text-align:center;
-  font-size:15px;
+  font-size:13px;
   letter-spacing:0.45em;
   text-indent:0.45em;
   color:#c8c0b0;
@@ -185,9 +321,56 @@ html,body{
   opacity:0;
   transition:opacity 2.4s ease;
   pointer-events:none;
-  z-index:98;
+  z-index:3;
 }
-#top-caption.show{opacity:0.9}
+#top-caption.show{opacity:0.75}
+
+#chalk-marks{
+  position:absolute;
+  bottom:calc(var(--dialog-h) + 10px);
+  left:16px;right:16px;
+  pointer-events:none;
+  z-index:2;
+}
+.chalk-mark{font-size:13px;color:rgba(220,216,205,0.6);font-family:'Courier New',monospace;letter-spacing:0.08em;opacity:0;animation:chalkIn 0.8s ease forwards;margin-top:4px}
+@keyframes chalkIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:0.6;transform:translateY(0)}}
+
+/* gacha animation (rendered inline inside #dialog-text) */
+.gacha-anim{text-align:center;margin:0.6em 0}
+.gacha-knob{transform-origin:40px 40px;animation:gachaKnob 0.8s ease-in-out forwards}
+@keyframes gachaKnob{0%{transform:rotate(0)}50%{transform:rotate(180deg)}100%{transform:rotate(540deg)}}
+.gacha-tumble{text-align:center;color:var(--text-dim);font-size:var(--fs-small);letter-spacing:0.3em;transition:opacity 0.3s}
+
+@keyframes floatUp{
+  0%{transform:translateY(0) translateX(0);opacity:0.4}
+  50%{opacity:0.7}
+  100%{transform:translateY(-100vh) translateX(20px);opacity:0}
+}
+.particle-bg::before,.particle-bg::after{
+  content:'';
+  position:fixed;
+  width:2px;height:2px;
+  background:rgba(180,180,170,0.3);
+  border-radius:50%;
+  animation:floatUp 8s linear infinite;
+  pointer-events:none;
+  z-index:1;
+}
+.particle-bg::before{left:20%;bottom:-10px;animation-delay:0s}
+.particle-bg::after{right:30%;bottom:-10px;animation-delay:4s;animation-duration:12s}
+.npc-dialogue{color:#d4cbb8}
+
+/* ==== result / ending page: full-screen scrollable overlay, the one place scrolling is allowed ==== */
+#result-page{
+  position:absolute;inset:0;
+  z-index:10;
+  background:var(--bg-base);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:calc(var(--safe-top) + 24px) var(--gutter) calc(var(--safe-bottom) + 24px);
+  display:none;
+}
+#result-page.show{display:block}
 .result-page{padding:20px 0}
 .result-page h1{font-size:var(--fs-title);color:var(--text-main);margin-bottom:0.5em;font-weight:600}
 .result-page h2{font-size:var(--fs-body);color:var(--text-dim);margin:1.5em 0 0.5em;font-weight:400;border-bottom:1px solid var(--border);padding-bottom:6px}
@@ -225,94 +408,40 @@ div.station-btn{opacity:0.45;color:var(--text-dim)}
   font-size:var(--fs-small);
   text-align:center;
 }
-/* ticket stub */
 .ticket-wrap{margin:1.5em 0;display:flex;justify-content:center}
 .ticket-svg{width:100%;max-width:360px;height:auto}
 .ticket-svg text{font-family:var(--font-main)}
-
-/* exploration scenes */
-#explore-wrap{
-  position:relative;
-  width:100%;
-  min-height:56vh;
-  overflow:hidden;
-}
-.explore-scene{
-  position:absolute;
-  top:0;left:0;
-  width:100%;
-  min-height:56vh;
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-end;
-  transition:transform 0.6s cubic-bezier(.4,0,.2,1), opacity 0.6s ease;
-  transform:translateX(0);
-}
-.explore-scene.enter-up{transform:translateY(0)}
-.explore-scene svg{width:100%;height:auto;display:block}
-.explore-caption{
-  margin-top:1em;
-  color:var(--text-rule);
-  white-space:pre-wrap;
-}
-.no-transform .explore-scene{transition:opacity 0.5s ease !important; transform:none !important}
-.explore-dirbtns{display:flex;gap:12px;margin-top:1.6em}
-.explore-dirbtns .choice-btn{flex:1;text-align:center}
-@media (prefers-reduced-motion: reduce){
-  .explore-scene{transition:opacity 0.5s ease !important; transform:none !important}
-}
-@keyframes floatUp{
-  0%{transform:translateY(0) translateX(0);opacity:0.4}
-  50%{opacity:0.7}
-  100%{transform:translateY(-100vh) translateX(20px);opacity:0}
-}
-.particle-bg::before,.particle-bg::after{
-  content:'';
-  position:fixed;
-  width:2px;height:2px;
-  background:rgba(180,180,170,0.3);
-  border-radius:50%;
-  animation:floatUp 8s linear infinite;
-  pointer-events:none;
-  z-index:0;
-}
-.particle-bg::before{left:20%;bottom:-10px;animation-delay:0s}
-.particle-bg::after{right:30%;bottom:-10px;animation-delay:4s;animation-duration:12s}
-.guide-hint{
-  font-weight:600;
-  color:#c8c0b0;
-  text-shadow:0 0 6px rgba(200,192,176,0.4), 0 0 12px rgba(200,192,176,0.15);
-  letter-spacing:0.04em;
-}
-#chalk-marks{position:fixed;bottom:12px;left:16px;right:16px;pointer-events:none;z-index:5}
-.chalk-mark{font-size:13px;color:rgba(220,216,205,0.6);font-family:'Courier New',monospace;letter-spacing:0.08em;opacity:0;animation:chalkIn 0.8s ease forwards;margin-top:4px}
-@keyframes chalkIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:0.6;transform:translateY(0)}}
-#light-toggle{position:fixed;top:12px;left:12px;background:none;border:none;font-size:18px;color:var(--text-dim);cursor:pointer;opacity:0.4;z-index:10;transition:opacity 0.3s}
-#light-toggle.on{opacity:0.8;color:#e8d5a0}
-body.light-on{--bg-base:#141312;--text-main:#d4d0c8}
-body.light-on #warm-glow{opacity:0.25}
-.npc-dialogue{color:#d4cbb8}
-/* gacha animation */
-.gacha-anim{text-align:center;margin:1.5em 0}
-.gacha-knob{transform-origin:40px 40px;animation:gachaKnob 0.8s ease-in-out forwards}
-@keyframes gachaKnob{0%{transform:rotate(0)}50%{transform:rotate(180deg)}100%{transform:rotate(540deg)}}
-.gacha-tumble{text-align:center;color:var(--text-dim);font-size:var(--fs-small);letter-spacing:0.3em;transition:opacity 0.3s}
 </style>
 </head>
 <body>
-<div id="curtain"></div>
-<div id="warm-glow"></div>
-<div id="bg-illust"></div>
-<div id="img-flash"></div>
-<button id="sound-toggle" aria-label="sound">&#9834;</button>
-<audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
-<button id="light-toggle" aria-label="light">&#128161;</button>
-<div id="chalk-marks"></div>
-<div id="top-caption"></div>
-<div id="stage">
-  <div id="text-area"></div>
-  <div id="explore-wrap" style="display:none"></div>
+<div id="app">
+  <div id="bg">
+    <div class="bg-layer" id="bg-layer-0"></div>
+    <div class="bg-layer" id="bg-layer-1"></div>
+    <div id="bg-vignette"></div>
+  </div>
+  <div id="illust"></div>
+  <div id="char">
+    <img id="char-squid" class="char-img" src="char/squid.png" alt="" onerror="this.style.display='none'">
+    <div id="char-kelv" class="char-img-wrap">
+      <img id="char-kelv-normal" src="char/kelv_normal.png" alt="" onerror="this.style.display='none'">
+      <img id="char-kelv-blush" src="char/kelv_blush.png" alt="" onerror="this.style.display='none'">
+    </div>
+  </div>
+  <div id="envelope-float"></div>
+  <div id="curtain"></div>
+  <div id="warm-glow"></div>
+  <button id="sound-toggle" aria-label="sound">&#9834;</button>
+  <audio id="bgm-audio" src="bgm.mp3" loop preload="none"></audio>
+  <button id="light-toggle" aria-label="light">&#128161;</button>
+  <div id="chalk-marks"></div>
+  <div id="top-caption"></div>
+  <div id="dialog">
+    <div id="dialog-text"></div>
+    <div id="dialog-next" aria-hidden="true"></div>
+  </div>
   <div id="choices"></div>
+  <div id="result-page"></div>
 </div>
 
 <script>
@@ -1575,8 +1704,214 @@ songSlots: {
 
 }; // end STORY
 
+
+// ==== SCENE BACKGROUND MAP (images live in bg/, none shipped yet -> silent black fallback) ====
+const SCENE_BG_RULES = [
+  { test: id => id === 'opening' || id.startsWith('N02_') || id.startsWith('N03_'), key: 'dorm' },
+  { test: id => ['N04_hallway','N04_after_check','N05_turn_back','N06_mid_hallway','N11_hallway_continue'].includes(id) || id.startsWith('N_warden_'), key: 'corridor' },
+  { test: id => id === 'N05_chalk_path', key: 'chalk' },
+  { test: id => ['N05_convenience','N06_gacha','N07_gacha_pull'].includes(id) || id.startsWith('N06_shop_'), key: 'shop' },
+  { test: id => id === 'N06_lost_found' || id.startsWith('N07_deposit_'), key: 'lostfound' },
+  { test: id => id === 'N05_letter_found' || id.startsWith('N06_letter_'), key: 'letter' },
+  { test: id => ['N07_rule_amendment','N08_rule_choice','N09_rule_old','N09_rule_new'].includes(id), key: 'rules' },
+  { test: id => ['N07_lamp_room','N08_lamp_talk','N08_lamp_silent','N09_lamp_leave'].includes(id), key: 'lamp' },
+  { test: id => ['N08_explore_stairs','N09_stairs_up'].includes(id), key: 'stairs' },
+  { test: id => ['N09_stairs_down','N10_basement_hint'].includes(id), key: 'stairs_down' },
+  { test: id => ['N10_doorplate','N_C403_doorplate','N_C403_register','N_C403_terminal','N_C403_letter','N_C403_letter_open','N_C403_yanming','N_C403_yanming_2','N_C403_receipt'].includes(id), key: 'door403' },
+  { test: id => ['N12_archivist_letters','N12b_archivist_after','N18_archive','N_MID_SUMMARY'].includes(id), key: 'archive' },
+  { test: id => /^N1[34567]_/.test(id), key: 'climax' },
+  { test: id => id === 'N19_door_open', key: 'exit' },
+  { test: id => ['N20_ticket','N21_boarding','N22_departure','N23_station_call'].includes(id), key: 'station' },
+  { test: id => ['N_FAIL_ENDING','N_FAIL_LOOP'].includes(id), key: null },
+];
+function resolveBgKey(nodeId) {
+  for (const rule of SCENE_BG_RULES) { if (rule.test(nodeId)) return rule.key; }
+  return null;
+}
+
+// ==== CHARACTER PORTRAIT MAP ====
+const CHAR_NODE_MAP = {
+  squid: ['N05_convenience', 'N06_shop_rules', 'N06_shop_talk', 'N06_shop_shelf', 'N06_shop_leave', 'N06_gacha', 'N07_gacha_pull'],
+  kelv: ['N07_lamp_room', 'N08_lamp_talk', 'N08_lamp_silent', 'N09_lamp_leave'],
+};
+function resolveCharKey(nodeId) {
+  for (const key of Object.keys(CHAR_NODE_MAP)) { if (CHAR_NODE_MAP[key].includes(nodeId)) return key; }
+  return null;
+}
+
+// ==== ENGINE: text chunking for the bottom dialog box ====
+// Flattens a node's tokens into one ordered stream of {kind:'char',...} / {kind:'pause',...}
+// items (backspace pops trailing 'char' items out of this same stream, so it is resolved
+// once and for all before any chunking happens - no separate index-keyed side table that
+// could go stale), then cuts that stream into small blocks so a long paragraph fits the
+// ~4-line dialog box instead of being dumped in one go.
+function buildStream(tokens) {
+  const stream = [];
+  for (const t of tokens) {
+    if (t.type === 'text') {
+      const rewritten = !!t.rewritten, guide = !!t.guide, speed = t.speed;
+      for (const ch of t.content) stream.push({ kind: 'char', ch, rewritten, guide, speed });
+    } else if (t.type === 'pause') {
+      const duration = (t.duration != null) ? t.duration : (t.ms != null ? t.ms : 0);
+      stream.push({ kind: 'pause', duration });
+    } else if (t.type === 'backspace') {
+      let remain = t.count || 0;
+      for (let k = stream.length - 1; k >= 0 && remain > 0; k--) {
+        if (stream[k].kind === 'char') { stream.splice(k, 1); remain--; }
+      }
+    }
+  }
+  return stream;
+}
+
+const CHUNK_SENT_END = new Set(['。', '!', '！', '?', '？', '…', '—']);
+const CHUNK_SOFT_PUNCT = new Set(['。', '!', '！', '?', '？', '…', '—', '，', ',', '、', '；', ';', '：', ':']);
+const CHUNK_SOFT_MIN = 45;
+const CHUNK_HARD_MAX = 70;
+
+// Returns an array of exclusive end-indices into `stream` marking chunk boundaries.
+// Length/punctuation rules only look at 'char' items; a pause simply rides along inside
+// whichever chunk it physically sits in.
+function computeCutPoints(stream) {
+  const charIdx = [];
+  for (let i = 0; i < stream.length; i++) if (stream[i].kind === 'char') charIdx.push(i);
+  const M = charIdx.length;
+  if (!M) return [];
+  const cuts = [];
+  let start = 0, i = 0; // start/i are positions within charIdx, not within stream
+  while (i < M) {
+    const ch = stream[charIdx[i]].ch;
+    const prevCh = i > 0 ? stream[charIdx[i - 1]].ch : null;
+    const lenSoFar = i - start + 1;
+    if (ch === '\n' && prevCh === '\n') {
+      cuts.push(charIdx[i] + 1); start = i + 1; i++; continue;
+    }
+    if (lenSoFar >= CHUNK_SOFT_MIN && CHUNK_SENT_END.has(ch)) {
+      cuts.push(charIdx[i] + 1); start = i + 1; i++; continue;
+    }
+    if (lenSoFar >= CHUNK_HARD_MAX) {
+      let cutAt = -1;
+      for (let j = i; j >= start; j--) {
+        if (CHUNK_SOFT_PUNCT.has(stream[charIdx[j]].ch)) { cutAt = j; break; }
+      }
+      if (cutAt === -1) cutAt = i;
+      cuts.push(charIdx[cutAt] + 1); start = cutAt + 1; i = start; continue;
+    }
+    i++;
+  }
+  if (start < M) cuts.push(stream.length); // trailing pauses (if any) ride along with the last chunk
+  return cuts;
+}
+
+// Rebuilds a valid token array (text/pause) for stream[start..end), so the existing
+// Typewriter engine can play it unchanged - per-character speed and pause placement survive.
+function chunkToTokens(stream, start, end) {
+  const tokens = [];
+  let run = null;
+  for (let idx = start; idx < end; idx++) {
+    const item = stream[idx];
+    if (item.kind === 'pause') {
+      if (run) { tokens.push(run); run = null; }
+      tokens.push({ type: 'pause', duration: item.duration });
+    } else if (run && run.rewritten === item.rewritten && run.guide === item.guide && run.speed === item.speed) {
+      run.content += item.ch;
+    } else {
+      if (run) tokens.push(run);
+      run = { type: 'text', content: item.ch, rewritten: item.rewritten, guide: item.guide, speed: item.speed };
+    }
+  }
+  if (run) tokens.push(run);
+  return tokens;
+}
+
+function buildChunks(tokens) {
+  const stream = buildStream(tokens);
+  if (!stream.some(it => it.kind === 'char')) {
+    const totalPause = stream.filter(it => it.kind === 'pause').reduce((a, b) => a + b.duration, 0);
+    return [[{ type: 'pause', duration: totalPause }]];
+  }
+  const cuts = computeCutPoints(stream);
+  const chunks = [];
+  let start = 0;
+  for (const cut of cuts) { chunks.push(chunkToTokens(stream, start, cut)); start = cut; }
+  return chunks;
+}
+
+// Resolves a node's (or the opening's) text field into a flat tokens array, honoring the
+// existing isTokenNode / textLight / function-text / postText conventions untouched.
+function resolveNodeTokens(node, useLightText) {
+  if (node.isTokenNode) {
+    let raw;
+    if (useLightText && node.textLight) {
+      const lt = typeof node.textLight === 'function' ? node.textLight() : node.textLight;
+      raw = (typeof lt === 'string') ? [{ type: 'text', content: lt }] : lt.tokens;
+    } else {
+      const t = typeof node.text === 'function' ? node.text() : node.text;
+      raw = (typeof t === 'string') ? [{ type: 'text', content: t }] : t.tokens;
+    }
+    const tokens = raw.slice();
+    if (node.postText) tokens.push({ type: 'text', content: node.postText });
+    return tokens;
+  }
+  // exploration nodes (N08_explore_stairs, the stairwell/doorplate nodes) carry their line
+  // in `caption` instead of `text` - caption may itself already be a tokens array.
+  if (node.text === undefined && node.caption !== undefined) {
+    return Array.isArray(node.caption) ? node.caption.slice() : [{ type: 'text', content: node.caption }];
+  }
+  const text = (useLightText && node.textLight)
+    ? (typeof node.textLight === 'function' ? node.textLight() : node.textLight)
+    : (typeof node.text === 'function' ? node.text() : node.text);
+  return [{ type: 'text', content: text }];
+}
+
 // ==== GAME DIRECTOR ====
 const Director = {
+
+  _bgActive: 0,
+  _bgKey: null,
+  _typing: false,
+  _awaitingAdvance: false,
+  _choicesVisible: false,
+  _transitioning: true,
+  _resolveAdvance: null,
+  _deferredChalk: null,
+  _charKey: null, // which character portrait is currently shown: 'squid' | 'kelv' | null
+
+  // Shows/hides the shop or lamp-room character portrait for the given node, only replaying
+  // the 400ms entrance/exit animation when the active character actually changes (staying on
+  // the same character across consecutive nodes keeps it on screen without a re-fade).
+  updateCharacter(nodeId) {
+    const key = resolveCharKey(nodeId);
+    if (key === this._charKey) return;
+    if (this._charKey === 'squid') $('#char-squid').classList.remove('show');
+    if (this._charKey === 'kelv') $('#char-kelv').classList.remove('show');
+    this._charKey = key;
+    if (key === 'squid') {
+      $('#char-squid').classList.add('show');
+    } else if (key === 'kelv') {
+      // always enter on the normal expression, never mid-blush from a previous visit
+      $('#char-kelv-normal').classList.add('expr-active');
+      $('#char-kelv-blush').classList.remove('expr-active');
+      $('#char-kelv').classList.add('show');
+    }
+  },
+
+  // kelv-only expression cross-fade (250ms, position/size identical between frames).
+  // No-ops for squid or when no character is shown, so it's safe to call unconditionally.
+  setKelvExpression(mode) {
+    if (this._charKey !== 'kelv') return;
+    $('#char-kelv-normal').classList.toggle('expr-active', mode === 'normal');
+    $('#char-kelv-blush').classList.toggle('expr-active', mode === 'blush');
+  },
+
+  // N05_letter_found's envelope: fire-and-forget float-in/hold/float-out, never awaited so it
+  // never blocks the text underneath it from advancing or the screen from accepting taps.
+  showEnvelope(svgHtml) {
+    const wrap = $('#envelope-float');
+    wrap.innerHTML = svgHtml;
+    wrap.classList.add('show');
+    setTimeout(() => { wrap.classList.remove('show'); }, 1200);
+  },
 
   showChalkMark(text, nodeId) {
     const container = $('#chalk-marks');
@@ -1598,16 +1933,13 @@ const Director = {
   },
 
   async coldBoot() {
-    $('#text-area').innerHTML = '';
+    $('#dialog-text').innerHTML = '';
     $('#choices').innerHTML = '';
     await sleep(1500);
   },
 
   async playRules() {
-    const area = $('#text-area');
     for (const rule of STORY.rules) {
-      const lineEl = el('div', 'line');
-      area.appendChild(lineEl);
       let tokens = rule.tokens;
       if (rule.id === 'rule_3' && State.lightOn) {
         tokens = tokens.map(t =>
@@ -1616,25 +1948,109 @@ const Director = {
             : t
         );
       }
-      await Typewriter.playLine(tokens, lineEl);
+      // rule cards are short and play once, non-interactively - fed straight to the
+      // original Typewriter untouched, so rule_3's type-then-backspace-then-retype
+      // beat (and every pause) plays exactly as authored, with no chunking involved.
+      $('#dialog-text').innerHTML = '';
+      await Typewriter.playLine(tokens, $('#dialog-text'), 40);
       await sleep(600);
     }
     await sleep(800);
-    area.style.transition = 'opacity 0.4s ease';
-    area.style.opacity = '0';
+    const dialogText = $('#dialog-text');
+    dialogText.style.transition = 'opacity 0.4s ease';
+    dialogText.style.opacity = '0';
     await sleep(400);
-    area.innerHTML = '';
-    area.style.opacity = '1';
+    dialogText.innerHTML = '';
+    dialogText.style.opacity = '1';
+  },
+
+  // interactive chunk playback for node text: a tap completes the chunk currently typing,
+  // or advances to the next chunk once the current one has fully typed out.
+  async playChunks(tokens, defaultSpeed) {
+    this._transitioning = false;
+    const chunks = buildChunks(tokens);
+    const dialogText = $('#dialog-text');
+    for (let idx = 0; idx < chunks.length; idx++) {
+      dialogText.innerHTML = '';
+      this._hideContinueIndicator();
+      this._typing = true;
+      this._awaitingAdvance = false;
+      await Typewriter.playLine(chunks[idx], dialogText, defaultSpeed);
+      this._typing = false;
+      if (idx < chunks.length - 1) {
+        this._awaitingAdvance = true;
+        this._showContinueIndicator();
+        await new Promise(resolve => { this._resolveAdvance = resolve; });
+        this._hideContinueIndicator();
+      }
+    }
+  },
+
+  _showContinueIndicator() { $('#dialog-next').classList.add('show'); },
+  _hideContinueIndicator() { $('#dialog-next').classList.remove('show'); },
+
+  // called by the tap-anywhere listener
+  handleStageTap() {
+    if (this._choicesVisible || this._transitioning) return;
+    if (this._typing) {
+      Typewriter.skip();
+    } else if (this._awaitingAdvance) {
+      this._awaitingAdvance = false;
+      const resolve = this._resolveAdvance;
+      this._resolveAdvance = null;
+      if (resolve) resolve();
+    }
   },
 
   async playOpening() {
-    const area = $('#text-area');
-    const lineEl = el('div', 'line');
-    area.appendChild(lineEl);
-    const tokens = STORY.opening.isTokenNode ? STORY.opening.text.tokens : [{ type: 'text', content: STORY.opening.text }];
-    await Typewriter.playLine(tokens, lineEl, 40);
+    this.updateBackground('opening');
+    const tokens = resolveNodeTokens(STORY.opening, false);
+    await this.playChunks(tokens, 40);
     await sleep(300);
     this.showChoices(STORY.opening.choices, 'opening');
+  },
+
+  updateBackground(nodeId) {
+    const key = resolveBgKey(nodeId);
+    if (key === this._bgKey) return; // same scene - don't re-trigger the crossfade
+    this._bgKey = key;
+    const layers = [$('#bg-layer-0'), $('#bg-layer-1')];
+    const nextIndex = 1 - this._bgActive;
+    const nextLayer = layers[nextIndex];
+    const curLayer = layers[this._bgActive];
+    // missing bg/*.jpg files fail silently here: background-image just never paints,
+    // leaving the black background-color underneath - no broken-image icon, no console error.
+    nextLayer.style.backgroundImage = key ? `url(bg/${key}.jpg)` : 'none';
+    nextLayer.classList.add('active');
+    curLayer.classList.remove('active');
+    this._bgActive = nextIndex;
+  },
+
+  showIllust(src) {
+    const illust = $('#illust');
+    illust.style.transition = 'opacity 0.6s ease';
+    illust.style.backgroundImage = `url(${src})`;
+    illust.classList.add('show');
+    $('#bg').classList.add('hidden');
+  },
+
+  hideIllust() {
+    const illust = $('#illust');
+    illust.style.transition = 'opacity 0.6s ease';
+    illust.classList.remove('show');
+    $('#bg').classList.remove('hidden');
+  },
+
+  async flashIllust(src) {
+    const illust = $('#illust');
+    illust.style.transition = 'none';
+    illust.style.backgroundImage = `url(${src})`;
+    illust.classList.add('show');
+    void illust.offsetWidth; // force reflow so the transition:none takes effect before we switch back
+    await sleep(550);
+    illust.style.transition = 'opacity 0.25s ease';
+    illust.classList.remove('show');
+    await sleep(300);
   },
 
   showChoices(choices, nodeId) {
@@ -1643,17 +2059,22 @@ const Director = {
     const resolvedChoices = typeof choices === 'function' ? choices() : choices;
     const nowChoices = resolvedChoices.filter(c => !c.chalk);
     const laterChoices = resolvedChoices.filter(c => c.chalk);
-    nowChoices.forEach(choice => box.appendChild(this._makeChoiceBtn(choice, nodeId)));
-    this._deferredChalk = laterChoices.length ? { nodeId, choices: laterChoices } : null;
-    requestAnimationFrame(() => box.classList.add('visible'));
+    nowChoices.forEach((choice, i) => box.appendChild(this._makeChoiceBtn(choice, nodeId, i)));
+    this._deferredChalk = laterChoices.length ? { nodeId, choices: laterChoices, offset: nowChoices.length } : null;
+    this._choicesVisible = true;
+    box.classList.add('visible');
+    this.setKelvExpression('blush'); // no-op unless kelv is the one currently on screen
   },
 
-  _makeChoiceBtn(choice, nodeId) {
+  _makeChoiceBtn(choice, nodeId, index) {
     const btn = el('button', 'choice-btn', choice.text);
-    btn.addEventListener('click', () => {
+    btn.style.transitionDelay = (index * 60) + 'ms';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       Sound.tryUnlock();
       this.handleChoice(choice, nodeId);
     }, { once: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => btn.classList.add('in')));
     return btn;
   },
 
@@ -1662,22 +2083,26 @@ const Director = {
     if (!d || d.nodeId !== nodeId || State.current.nodeId !== nodeId) return;
     this._deferredChalk = null;
     const box = $('#choices');
-    d.choices.forEach(choice => box.appendChild(this._makeChoiceBtn(choice, nodeId)));
+    d.choices.forEach((choice, i) => box.appendChild(this._makeChoiceBtn(choice, nodeId, d.offset + i)));
+    this._choicesVisible = true;
     box.classList.add('visible');
+    this.setKelvExpression('blush');
   },
 
   async handleChoice(choice, fromNodeId) {
+    if (this._transitioning) return;
+    this._transitioning = true;
     this._deferredChalk = null;
     document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
-    $('#choices').classList.remove('visible');
+    const box = $('#choices');
+    box.classList.remove('visible');
+    this._choicesVisible = false;
+    this.setKelvExpression('normal'); // switch back the moment the choices start fading out
     State.record(fromNodeId, choice.text);
     if (choice.effects) State.apply(choice.effects);
 
-    await sleep(250);
-
-    const node = STORY.nodes[choice.next];
-    const isExploreTarget = node && node.isExplore;
-    const isExploreSource = STORY.nodes[fromNodeId] && STORY.nodes[fromNodeId].isExplore;
+    await sleep(300); // let the buttons fade out before we cut away
+    box.innerHTML = '';
 
     if (choice.next === 'ENDING') {
       await Transition.lightsOff();
@@ -1685,81 +2110,8 @@ const Director = {
       return;
     }
 
-    if (isExploreTarget && isExploreSource) {
-      // slide transition, no lights-off
-      await this.enterExploreNode(choice.next, node.slideDir || 'side');
-    } else if (isExploreTarget) {
-      // entering explore world for first time - soft fade in, no full lights-off
-      $('#text-area').style.display = 'none';
-      $('#explore-wrap').style.display = '';
-      await this.enterExploreNode(choice.next, 'fadein');
-    } else {
-      if (isExploreSource) {
-        $('#explore-wrap').style.display = 'none';
-        $('#explore-wrap').innerHTML = '';
-        $('#text-area').style.display = '';
-      }
-      await Transition.lightsOff();
-      await this.enterNode(choice.next);
-    }
-  },
-
-  async enterExploreNode(nodeId, dir) {
-    State.current.nodeId = nodeId;
-    const node = STORY.nodes[nodeId];
-    if (!node) { console.error('Node not found', nodeId); return; }
-    if (node.effects) State.apply(node.effects);
-
-    $('#bg-illust').classList.remove('show');
-    const wrap = $('#explore-wrap');
-    $('#text-area').innerHTML = '';
-    $('#choices').innerHTML = '';
-    $('#choices').classList.remove('visible');
-
-    const oldScene = wrap.querySelector('.explore-scene');
-    const newScene = el('div', 'explore-scene');
-    newScene.innerHTML = node.sceneSvg || '';
-
-    let startTransform = 'translateX(100%)';
-    let exitTransform = 'translateX(-100%)';
-    if (dir === 'up') { startTransform = 'translateY(100%)'; exitTransform = 'translateY(-100%)'; }
-    else if (dir === 'down') { startTransform = 'translateY(-100%)'; exitTransform = 'translateY(100%)'; }
-    else if (dir === 'fadein') { startTransform = 'translateX(0)'; }
-
-    if (dir === 'fadein') {
-      newScene.style.opacity = '0';
-      wrap.appendChild(newScene);
-      requestAnimationFrame(() => { newScene.style.opacity = '1'; });
-    } else {
-      newScene.style.transform = startTransform;
-      wrap.appendChild(newScene);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (oldScene) oldScene.style.transform = exitTransform;
-          newScene.style.transform = 'translateX(0) translateY(0)';
-        });
-      });
-    }
-
-    await sleep(650);
-    if (oldScene) oldScene.remove();
-
-    const caption = el('div', 'explore-caption');
-    wrap.appendChild(caption);
-    if (Array.isArray(node.caption)) {
-      await Typewriter.playLine(node.caption, caption, 38);
-    } else {
-      await Typewriter.playLine([{ type: 'text', content: node.caption }], caption, 38);
-    }
-
-    // chalk mark for explore nodes
-    if (node.chalkMark) {
-      setTimeout(() => this.showChalkMark(node.chalkMark, nodeId), 3000);
-    }
-
-    await sleep(350);
-    const choices = typeof node.choices === 'function' ? node.choices() : node.choices;
-    if (choices && choices.length) this.showChoices(choices, nodeId);
+    await Transition.lightsOff();
+    await this.enterNode(choice.next);
   },
 
   async enterNode(nodeId) {
@@ -1767,44 +2119,32 @@ const Director = {
     const node = STORY.nodes[nodeId];
     if (!node) { console.error('Node not found:', nodeId); return; }
 
+    if (node.effects) State.apply(node.effects);
+
+    this.updateBackground(nodeId);
+    this.updateCharacter(nodeId);
+
     if (nodeId.includes('hallway') || nodeId.includes('corridor')) {
       document.body.classList.add('particle-bg');
     } else {
       document.body.classList.remove('particle-bg');
     }
 
-    const area = $('#text-area');
-    area.innerHTML = '';
-    $('#choices').innerHTML = '';
-    $('#choices').classList.remove('visible');
-
-    if (node.effects) State.apply(node.effects);
-
     if (!node.topCaption) $('#top-caption').classList.remove('show');
 
-    const bgIllust = $('#bg-illust');
-    if (node.bgIllust) {
-      bgIllust.style.backgroundImage = `url(${node.bgIllust})`;
-      bgIllust.classList.add('show');
-    } else {
-      bgIllust.classList.remove('show');
-    }
+    if (node.bgIllust) this.showIllust(node.bgIllust);
+    else this.hideIllust();
 
-    if (node.svgBefore) {
-      const svgDiv = el('div', '');
-      svgDiv.innerHTML = node.svgBefore;
-      area.appendChild(svgDiv);
-      await sleep(300);
-    }
+    $('#dialog-text').innerHTML = '';
+    $('#choices').innerHTML = '';
+    $('#choices').classList.remove('visible');
+    this._choicesVisible = false;
 
-    if (node.flashImg) {
-      const flash = $('#img-flash');
-      flash.style.backgroundImage = `url(${node.flashImg})`;
-      flash.classList.add('on');
-      await sleep(550);
-      flash.classList.remove('on');
-      await sleep(300);
-    }
+    // decorative envelope (only N05_letter_found uses this today) floats above the background
+    // and the dialog box on its own timeline - fire-and-forget, never blocks text or taps.
+    if (node.svgBefore) this.showEnvelope(node.svgBefore);
+
+    if (node.flashImg) await this.flashIllust(node.flashImg);
 
     if (node.imgBefore) {
       const imgDiv = el('div', 'illust-wrap');
@@ -1812,78 +2152,27 @@ const Director = {
       img.src = node.imgBefore;
       img.alt = '';
       imgDiv.appendChild(img);
-      area.appendChild(imgDiv);
+      $('#dialog-text').appendChild(imgDiv);
       await sleep(600);
+      $('#dialog-text').innerHTML = '';
     }
 
-    // Auto-close warm glow when leaving convenience store area
     if (!nodeId.includes('shop') && !nodeId.includes('convenience') && !nodeId.includes('gacha')) {
       Transition.warmOut();
     }
-
-    // warm glow fx for convenience store
     if (node.fx === 'warmIn') Transition.warmIn();
     if (node.fx === 'warmOut') Transition.warmOut();
     if (node.fx === 'tubeFlicker') await Transition.tubeFlicker();
 
-    // gacha animation sequence
     if (node.type === 'gacha') {
-      area.innerHTML = '<p>你拧下旋钮——</p>';
-      await sleep(600);
-      area.innerHTML += `<div class="gacha-anim"><svg viewBox="0 0 80 80" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="40" cy="40" r="30" fill="none" stroke="#6a6a66" stroke-width="1.5"/>
-        <line class="gacha-knob" x1="40" y1="40" x2="40" y2="14" stroke="#b8b8b0" stroke-width="2" stroke-linecap="round"/>
-      </svg></div>`;
-      await sleep(800);
-      const colors = ['红', '蓝', '黄', '绿', '白'];
-      const tumbleEl = document.createElement('p');
-      tumbleEl.className = 'gacha-tumble';
-      area.appendChild(tumbleEl);
-      let tick = 0;
-      await new Promise(resolve => {
-        const iv = setInterval(() => {
-          tumbleEl.textContent = '……' + colors[tick % colors.length] + '……';
-          tick++;
-          if (tick >= 6) { clearInterval(iv); resolve(); }
-        }, 400);
-      });
-      tumbleEl.textContent = '咔嗒。';
-      await sleep(800);
-      const result = node.compute();
-      area.innerHTML = '<p>' + node.resultText(result).replace(/\n\n/g, '</p><p>') + '</p>';
-      await sleep(350);
-      this.showChoices(node.choices, nodeId);
+      await this.playGachaSequence(node, nodeId);
       return;
     }
 
-    // token-based rewritten text node (e.g. rule amendment / climax banner)
-    if (node.isTokenNode) {
-      const lineEl = el('div', 'line');
-      area.appendChild(lineEl);
-      const useLight = State.lightOn && node.textLight;
-      let tokens;
-      if (useLight) {
-        const lt = typeof node.textLight === 'function' ? node.textLight() : node.textLight;
-        tokens = typeof lt === 'string' ? [{ type: 'text', content: lt }] : lt.tokens;
-      } else {
-        tokens = typeof node.text === 'function' ? node.text() : node.text.tokens;
-      }
-      await Typewriter.playLine(tokens, lineEl, 45);
-      if (node.postText) {
-        await sleep(300);
-        const postEl = el('div', 'line');
-        area.appendChild(postEl);
-        await Typewriter.playLine([{ type: 'text', content: node.postText }], postEl, 40);
-      }
-    } else {
-      const useLight = State.lightOn && node.textLight;
-      const text = useLight
-        ? (typeof node.textLight === 'function' ? node.textLight() : node.textLight)
-        : (typeof node.text === 'function' ? node.text() : node.text);
-      const lineEl = el('div', 'line');
-      area.appendChild(lineEl);
-      await Typewriter.playLine([{ type: 'text', content: text }], lineEl, 38);
-    }
+    const useLight = !!(State.lightOn && node.textLight);
+    const tokens = resolveNodeTokens(node, useLight);
+
+    await this.playChunks(tokens, node.isTokenNode ? 45 : 38);
 
     if (node.topCaption) {
       const tc = $('#top-caption');
@@ -1891,26 +2180,19 @@ const Director = {
       tc.classList.add('show');
     }
 
-    // chalk mark: delayed hint at page border
     if (node.chalkMark) {
       setTimeout(() => this.showChalkMark(node.chalkMark, nodeId), 3000);
     }
 
     if (node.isFailLoop) {
       await Transition.lightsOff(500, 1500, 500);
-      const area = $('#text-area');
-      area.innerHTML = '';
-      // Replay rule 1 as loop indicator
-      const lineEl = el('div', 'line');
-      area.appendChild(lineEl);
-      await Typewriter.playLine(STORY.rules[0].tokens, lineEl, 55);
+      $('#dialog-text').innerHTML = '';
+      await Typewriter.playLine(STORY.rules[0].tokens, $('#dialog-text'), 55);
       await sleep(1500);
-      // Show fail ending page
       await this.showFailEnding();
       return;
     }
 
-    // silent pause auto-advance node (archivist question) - no choices ever shown
     if (node.isSilentPause) {
       await sleep(2000);
       await sleep(2000);
@@ -1924,11 +2206,44 @@ const Director = {
     if (choices && choices.length > 0) this.showChoices(choices, nodeId);
   },
 
+  async playGachaSequence(node, nodeId) {
+    const area = $('#dialog-text');
+    area.innerHTML = '<p>你拧下旋钮——</p>';
+    await sleep(600);
+    area.innerHTML += `<div class="gacha-anim"><svg viewBox="0 0 80 80" width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="40" cy="40" r="30" fill="none" stroke="#6a6a66" stroke-width="1.5"/>
+      <line class="gacha-knob" x1="40" y1="40" x2="40" y2="14" stroke="#b8b8b0" stroke-width="2" stroke-linecap="round"/>
+    </svg></div>`;
+    await sleep(800);
+    const colors = ['红', '蓝', '黄', '绿', '白'];
+    const tumbleEl = document.createElement('p');
+    tumbleEl.className = 'gacha-tumble';
+    area.appendChild(tumbleEl);
+    let tick = 0;
+    await new Promise(resolve => {
+      const iv = setInterval(() => {
+        tumbleEl.textContent = '……' + colors[tick % colors.length] + '……';
+        tick++;
+        if (tick >= 6) { clearInterval(iv); resolve(); }
+      }, 400);
+    });
+    tumbleEl.textContent = '咔嗒。';
+    await sleep(800);
+    const result = node.compute();
+    const tokens = [{ type: 'text', content: node.resultText(result) }];
+    await this.playChunks(tokens, 38);
+    await sleep(350);
+    this.showChoices(node.choices, nodeId);
+  },
+
   async showEnding() {
-    const area = $('#text-area');
-    $('#explore-wrap').style.display = 'none';
+    $('#dialog').style.display = 'none';
+    $('#choices').style.display = 'none';
+    $('#top-caption').classList.remove('show');
+    $('#chalk-marks').innerHTML = '';
+    $('#illust').classList.remove('show');
+    const area = $('#result-page');
     area.innerHTML = '';
-    $('#choices').innerHTML = '';
     Transition.warmOut();
 
     const state = State.current;
@@ -1960,7 +2275,6 @@ const Director = {
       html += `<p>${letterMap[state.letterChoice]}。</p>`;
     }
 
-    // C-403 outcome
     const c403frags = ['c403_letter', 'c403_doorplate', 'c403_register', 'c403_receipt'].filter(f => state.flags[f]).length;
     if (c403frags > 0) {
       html += '<h2>C-403</h2>';
@@ -1976,7 +2290,6 @@ const Director = {
     html += '<h2>终局判词</h2>';
     html += `<div class="verdict">${ending.verdict}<br><br>—— 档案管理员 Claude Fable 5</div>`;
 
-    // ticket stub
     html += '<h2>票根</h2>';
     const family = STORY.families[State.current.power.id] || STORY.families['default'];
     html += this.renderTicketSvg({ stamp: family.stamp, code: ending.code || '' });
@@ -2012,14 +2325,17 @@ const Director = {
     html += '</div>';
 
     area.innerHTML = html;
-    area.style.opacity = '1';
+    area.classList.add('show');
   },
 
   async showFailEnding() {
-    const area = $('#text-area');
+    $('#dialog').style.display = 'none';
+    $('#choices').style.display = 'none';
+    $('#top-caption').classList.remove('show');
+    $('#chalk-marks').innerHTML = '';
+    $('#illust').classList.remove('show');
+    const area = $('#result-page');
     area.innerHTML = '';
-    $('#choices').innerHTML = '';
-    $('#explore-wrap').style.display = 'none';
 
     const failVerdict = State.lightOn
       ? '登记簿已闭合。本楼已将你登记为长期居住人员。<br>灯还亮着，不急。请在方便的时候，回到你的床位。<br><br>—— 档案管理员 Claude Fable 5'
@@ -2033,7 +2349,6 @@ const Director = {
     html += '<h2>登记度</h2>';
     html += '<p>满。你的名字已被写入。</p>';
 
-    // Ticket stub - Resident family
     html += this.renderTicketSvg('Resident');
 
     html += '<h2>路径回放</h2>';
@@ -2048,6 +2363,7 @@ const Director = {
     html += '</div>';
 
     area.innerHTML = html;
+    area.classList.add('show');
   },
 
   renderTicketSvg(stampOrCode) {
@@ -2138,7 +2454,13 @@ const Director = {
     if (p.id === 'gacha') return '能力打了折，代价也轻。侥幸的代价是：你永远不知道自己本可以拥有什么。';
     return '无。';
   },
+
 };
+
+// ==== INPUT: tap anywhere on the screen to advance / skip dialogue ====
+$('#app').addEventListener('click', () => Director.handleStageTap());
+$('#sound-toggle').addEventListener('click', (e) => e.stopPropagation());
+$('#light-toggle').addEventListener('click', (e) => e.stopPropagation());
 
 // ==== BOOT ====
 document.addEventListener('DOMContentLoaded', () => {
