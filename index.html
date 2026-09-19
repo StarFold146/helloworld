@@ -86,16 +86,33 @@ body{
     linear-gradient(to bottom, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 56%, rgba(0,0,0,0.72) 100%);
 }
 
-/* ==== layer 1: full-screen character illustration (P1/P2/P3) ==== */
+/* ==== layer 1: character illustration (P1/P2 portrait, P3 flash) ==== */
+/* Default mode is the bgIllust portrait: it only occupies the screen from the top down to
+   the dialog box's top edge (not the full screen), and zooms/crops (cover-style, but with an
+   explicit oversized height so we can push the crop window down past the source art's own
+   built-in top padding) so the face sits in the upper-middle of that visible area instead of
+   being vertically centered with a black gap above it. Left/right cropping is fine; the face
+   is horizontally centered in the source art so a centered crop never touches it. */
 #illust{
-  position:absolute;inset:0;
+  position:absolute;
+  left:0;right:0;top:0;
+  bottom:var(--dialog-h);
   z-index:1;
-  background:#000 center/contain no-repeat;
+  background-color:#000;
+  background-repeat:no-repeat;
+  background-position:center 100%;
+  background-size:auto 140%;
   opacity:0;
   pointer-events:none;
   transition:opacity 0.6s ease;
 }
 #illust.show{opacity:1}
+/* flashImg (P3) keeps its original full-screen contain behaviour, untouched */
+#illust.flash-mode{
+  top:0;bottom:0;
+  background-position:center;
+  background-size:contain;
+}
 
 /* legacy inline image support (imgBefore, unused by current story data but kept as a safe fallback) */
 .illust-wrap{display:flex;justify-content:center;margin:0 0 0.6em}
@@ -122,7 +139,9 @@ body{
 }
 .char-img.show,.char-img-wrap.show{opacity:1;transform:translateY(0)}
 #char-squid{right:8vw;height:24vh;width:auto;object-fit:contain}
-#char-kelv{right:2vw;height:58vh;width:auto}
+/* 宽度必须写死：两张表情图都是绝对定位，撑不起 width:auto 的父框，
+   框会塌成 0 宽，把立绘整个挤没。原图 2048x2048 是方的，所以宽等于高。 */
+#char-kelv{right:2vw;height:58vh;width:58vh}
 /* the two expression frames sit stacked exactly on top of each other inside the (already
    positioned/sized) wrapper, and cross-fade on their own faster timeline - independent of
    the wrapper's entrance/exit transition, and with zero positional difference between them. */
@@ -149,6 +168,46 @@ body{
 }
 #envelope-float.show{opacity:1}
 #envelope-float svg{width:30vw !important;height:auto !important;display:block;margin:0 !important}
+
+/* ==== fullscreen-text mode: the pre-galgame plain reading layout, reserved for the intro
+   rule cards and the closing Egyptian-names passage - full black screen, no dialog box, no
+   portrait, no background, text centered on the page and left-aligned within itself, same
+   click-to-advance chunking as everywhere else. ==== */
+#fullscreen-text{
+  position:absolute;inset:0;
+  z-index:6;
+  background:#000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:0 8vw;
+}
+#fullscreen-text.show{display:flex}
+#fullscreen-text-inner{
+  color:var(--text-rule);
+  font-family:var(--font-main);
+  font-size:var(--fs-body);
+  line-height:var(--lh);
+  letter-spacing:0.03em;
+  white-space:pre-wrap;
+  text-align:left;
+  width:100%;
+  max-width:min(84vw,var(--content-max));
+}
+#fullscreen-text-next{
+  position:absolute;
+  left:50%;bottom:8vh;
+  transform:translateX(-50%);
+  width:0;height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-top:9px solid var(--text-dim);
+  opacity:0;
+  transition:opacity 0.3s ease;
+  animation:nextFloat 1.4s ease-in-out infinite;
+}
+#fullscreen-text-next.show{opacity:0.85}
+.fs-hidden{display:none !important}
 
 /* ==== layer 2: dialog box + choices overlay ==== */
 #dialog{
@@ -411,6 +470,15 @@ div.station-btn{opacity:0.45;color:var(--text-dim)}
 .ticket-wrap{margin:1.5em 0;display:flex;justify-content:center}
 .ticket-svg{width:100%;max-width:360px;height:auto}
 .ticket-svg text{font-family:var(--font-main)}
+/* a quiet closing signature at the very bottom of the result page - not a heading, not a button */
+.signoff{
+  margin-top:3em;
+  padding-top:1.2em;
+  text-align:center;
+  font-size:11px;
+  letter-spacing:0.2em;
+  color:rgba(184,184,176,0.32);
+}
 </style>
 </head>
 <body>
@@ -442,6 +510,10 @@ div.station-btn{opacity:0.45;color:var(--text-dim)}
   </div>
   <div id="choices"></div>
   <div id="result-page"></div>
+  <div id="fullscreen-text">
+    <div id="fullscreen-text-inner"></div>
+    <div id="fullscreen-text-next" aria-hidden="true"></div>
+  </div>
 </div>
 
 <script>
@@ -1739,6 +1811,10 @@ function resolveCharKey(nodeId) {
   return null;
 }
 
+// Nodes whose text plays in the plain fullscreen reading layout instead of the dialog box
+// (the closing Egyptian-names passage; the intro rule cards are handled separately in playRules).
+const FULLSCREEN_TEXT_NODES = new Set(['N_C403_yanming']);
+
 // ==== ENGINE: text chunking for the bottom dialog box ====
 // Flattens a node's tokens into one ordered stream of {kind:'char',...} / {kind:'pause',...}
 // items (backspace pops trailing 'char' items out of this same stream, so it is resolved
@@ -1772,6 +1848,19 @@ const CHUNK_HARD_MAX = 70;
 // Returns an array of exclusive end-indices into `stream` marking chunk boundaries.
 // Length/punctuation rules only look at 'char' items; a pause simply rides along inside
 // whichever chunk it physically sits in.
+// 句末标点后面往往还挂着收尾符号——右引号、右括号、省略号、换行。
+// 切点必须把它们一起吞进上一块，否则会出现下一页以 " 或 ) 开头的怪样子。
+const CHUNK_TRAILING = new Set([
+  '\u201d', '\u2019', '\uff09', '\u300d', '\u300f', '\u3009', '\u300b', '\u3011', '\u3015',
+  ')', ']', '}', '\u2026', '\u2014', '\uff01', '\uff1f', '\uff0c', '\u3002', '\n'
+]);
+
+// 从切点往后吞掉连续的收尾符号，返回新的下标。
+function extendOverTrailing(stream, charIdx, i, M) {
+  while (i + 1 < M && CHUNK_TRAILING.has(stream[charIdx[i + 1]].ch)) i++;
+  return i;
+}
+
 function computeCutPoints(stream) {
   const charIdx = [];
   for (let i = 0; i < stream.length; i++) if (stream[i].kind === 'char') charIdx.push(i);
@@ -1787,6 +1876,7 @@ function computeCutPoints(stream) {
       cuts.push(charIdx[i] + 1); start = i + 1; i++; continue;
     }
     if (lenSoFar >= CHUNK_SOFT_MIN && CHUNK_SENT_END.has(ch)) {
+      i = extendOverTrailing(stream, charIdx, i, M);
       cuts.push(charIdx[i] + 1); start = i + 1; i++; continue;
     }
     if (lenSoFar >= CHUNK_HARD_MAX) {
@@ -1795,6 +1885,7 @@ function computeCutPoints(stream) {
         if (CHUNK_SOFT_PUNCT.has(stream[charIdx[j]].ch)) { cutAt = j; break; }
       }
       if (cutAt === -1) cutAt = i;
+      cutAt = extendOverTrailing(stream, charIdx, cutAt, M);
       cuts.push(charIdx[cutAt] + 1); start = cutAt + 1; i = start; continue;
     }
     i++;
@@ -1939,6 +2030,11 @@ const Director = {
   },
 
   async playRules() {
+    // the three rule cards play in the plain fullscreen reading layout, one at a time,
+    // click-to-advance like everywhere else in the game.
+    this.enterFullscreenText();
+    const container = $('#fullscreen-text-inner');
+    const indicator = $('#fullscreen-text-next');
     for (const rule of STORY.rules) {
       let tokens = rule.tokens;
       if (rule.id === 'rule_3' && State.lightOn) {
@@ -1948,20 +2044,28 @@ const Director = {
             : t
         );
       }
-      // rule cards are short and play once, non-interactively - fed straight to the
-      // original Typewriter untouched, so rule_3's type-then-backspace-then-retype
-      // beat (and every pause) plays exactly as authored, with no chunking involved.
-      $('#dialog-text').innerHTML = '';
-      await Typewriter.playLine(tokens, $('#dialog-text'), 40);
-      await sleep(600);
+      container.innerHTML = '';
+      indicator.classList.remove('show');
+      this._transitioning = false;
+      this._typing = true;
+      this._awaitingAdvance = false;
+      // fed straight to the original Typewriter untouched (not chunked), so rule_3's
+      // type-then-backspace-then-retype beat (and every pause) plays exactly as authored -
+      // chunking would pre-resolve the backspace and lose that animation entirely.
+      await Typewriter.playLine(tokens, container, 40);
+      this._typing = false;
+      this._awaitingAdvance = true;
+      indicator.classList.add('show');
+      await new Promise(resolve => { this._resolveAdvance = resolve; });
+      indicator.classList.remove('show');
     }
-    await sleep(800);
-    const dialogText = $('#dialog-text');
-    dialogText.style.transition = 'opacity 0.4s ease';
-    dialogText.style.opacity = '0';
+    this._transitioning = true;
+    container.style.transition = 'opacity 0.4s ease';
+    container.style.opacity = '0';
     await sleep(400);
-    dialogText.innerHTML = '';
-    dialogText.style.opacity = '1';
+    container.innerHTML = '';
+    container.style.opacity = '1';
+    this.exitFullscreenText();
   },
 
   // interactive chunk playback for node text: a tap completes the chunk currently typing,
@@ -1988,6 +2092,47 @@ const Director = {
 
   _showContinueIndicator() { $('#dialog-next').classList.add('show'); },
   _hideContinueIndicator() { $('#dialog-next').classList.remove('show'); },
+
+  // fullscreen-text mode: full black screen, no dialog box/choices/portrait/background -
+  // used for the intro rule cards and the closing Egyptian-names passage, which read better
+  // isolated from the rest of the galgame chrome. Tap-to-advance works exactly the same way,
+  // driven through the same _typing/_awaitingAdvance/_resolveAdvance fields as playChunks.
+  enterFullscreenText() {
+    $('#dialog').classList.add('fs-hidden');
+    $('#choices').classList.add('fs-hidden');
+    $('#char').classList.add('fs-hidden');
+    $('#bg').classList.add('fs-hidden');
+    $('#fullscreen-text').classList.add('show');
+  },
+
+  exitFullscreenText() {
+    $('#fullscreen-text').classList.remove('show');
+    $('#dialog').classList.remove('fs-hidden');
+    $('#choices').classList.remove('fs-hidden');
+    $('#char').classList.remove('fs-hidden');
+    $('#bg').classList.remove('fs-hidden');
+  },
+
+  async playFullscreenChunks(tokens, defaultSpeed) {
+    this._transitioning = false;
+    const chunks = buildChunks(tokens);
+    const container = $('#fullscreen-text-inner');
+    const indicator = $('#fullscreen-text-next');
+    for (let idx = 0; idx < chunks.length; idx++) {
+      container.innerHTML = '';
+      indicator.classList.remove('show');
+      this._typing = true;
+      this._awaitingAdvance = false;
+      await Typewriter.playLine(chunks[idx], container, defaultSpeed);
+      this._typing = false;
+      if (idx < chunks.length - 1) {
+        this._awaitingAdvance = true;
+        indicator.classList.add('show');
+        await new Promise(resolve => { this._resolveAdvance = resolve; });
+        indicator.classList.remove('show');
+      }
+    }
+  },
 
   // called by the tap-anywhere listener
   handleStageTap() {
@@ -2028,6 +2173,7 @@ const Director = {
 
   showIllust(src) {
     const illust = $('#illust');
+    illust.classList.remove('flash-mode'); // portrait mode: top-to-dialog box, zoomed/cropped
     illust.style.transition = 'opacity 0.6s ease';
     illust.style.backgroundImage = `url(${src})`;
     illust.classList.add('show');
@@ -2043,6 +2189,7 @@ const Director = {
 
   async flashIllust(src) {
     const illust = $('#illust');
+    illust.classList.add('flash-mode'); // P3: unchanged full-screen contain flash
     illust.style.transition = 'none';
     illust.style.backgroundImage = `url(${src})`;
     illust.classList.add('show');
@@ -2051,6 +2198,7 @@ const Director = {
     illust.style.transition = 'opacity 0.25s ease';
     illust.classList.remove('show');
     await sleep(300);
+    illust.classList.remove('flash-mode');
   },
 
   showChoices(choices, nodeId) {
@@ -2172,7 +2320,15 @@ const Director = {
     const useLight = !!(State.lightOn && node.textLight);
     const tokens = resolveNodeTokens(node, useLight);
 
-    await this.playChunks(tokens, node.isTokenNode ? 45 : 38);
+    if (FULLSCREEN_TEXT_NODES.has(nodeId)) {
+      // the closing Egyptian-names passage reads in the plain fullscreen layout; exits back
+      // to the normal chrome right before its own choice button appears below.
+      this.enterFullscreenText();
+      await this.playFullscreenChunks(tokens, node.isTokenNode ? 45 : 38);
+      this.exitFullscreenText();
+    } else {
+      await this.playChunks(tokens, node.isTokenNode ? 45 : 38);
+    }
 
     if (node.topCaption) {
       const tc = $('#top-caption');
@@ -2322,6 +2478,8 @@ const Director = {
 
     html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
 
+    html += '<div class="signoff">Opus 5</div>';
+
     html += '</div>';
 
     area.innerHTML = html;
@@ -2360,6 +2518,7 @@ const Director = {
     html += '<p>' + (STORY.songSlots.Resident || STORY.songSlots._default) + '</p>';
 
     html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
+    html += '<div class="signoff">Opus 5</div>';
     html += '</div>';
 
     area.innerHTML = html;
