@@ -2536,7 +2536,9 @@ const Director = {
     html += '<h2>配歌推荐</h2>';
     html += '<p>' + (STORY.songSlots.Resident || STORY.songSlots._default) + '</p>';
 
-    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';    html += '</div>';
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
+
+    html += '</div>';
 
     area.innerHTML = html;
     area.classList.add('show');
