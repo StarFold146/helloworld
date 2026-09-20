@@ -1799,7 +1799,7 @@ songSlots: {
 }; // end STORY
 
 
-// ==== SCENE BACKGROUND MAP (images live in bg/, none shipped yet -> silent black fallback) ====
+// ==== SCENE BACKGROUND MAP (images live in bg/; every key below has a file except the null one) ====
 const SCENE_BG_RULES = [
   { test: id => id === 'opening' || id.startsWith('N02_') || id.startsWith('N03_'), key: 'dorm' },
   { test: id => ['N04_hallway','N04_after_check','N05_turn_back','N06_mid_hallway','N11_hallway_continue'].includes(id) || id.startsWith('N_warden_'), key: 'corridor' },
@@ -2185,8 +2185,8 @@ const Director = {
     const nextIndex = 1 - this._bgActive;
     const nextLayer = layers[nextIndex];
     const curLayer = layers[this._bgActive];
-    // missing bg/*.jpg files fail silently here: background-image just never paints,
-    // leaving the black background-color underneath - no broken-image icon, no console error.
+    // key 为 null（两个失败结局）时留纯黑；万一某张图丢了也是同样的下场——
+    // background-image 画不出来就什么都不画，底下的黑色背景露出来，不会出现裂图图标。
     nextLayer.style.backgroundImage = key ? `url(bg/${key}.jpg)` : 'none';
     nextLayer.classList.add('active');
     curLayer.classList.remove('active');
