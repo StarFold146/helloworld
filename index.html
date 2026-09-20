@@ -407,11 +407,15 @@ body.light-on #warm-glow{opacity:0.25}
 #top-caption.show{opacity:0.75}
 
 #chalk-marks{
+  /* 贴屏幕最底下，压在对话框的下沿里，不再浮在框上方——
+     那个位置现在是选项的地盘，粉笔字放上去会和选项叠在一起。
+     z-index 比 #dialog 高一级，才画得到框的毛玻璃之上；
+     出现时 showChalkMark 会按实测高度给对话框加底部内边距，正文不会被压住。 */
   position:absolute;
-  bottom:calc(var(--dialog-h) + 10px);
-  left:16px;right:16px;
+  bottom:calc(var(--safe-bottom) + 8px);
+  left:var(--gutter);right:var(--gutter);
   pointer-events:none;
-  z-index:2;
+  z-index:3;
 }
 .chalk-mark{font-size:13px;color:rgba(220,216,205,0.6);font-family:'Courier New',monospace;letter-spacing:0.08em;opacity:0;animation:chalkIn 0.8s ease forwards;margin-top:4px}
 @keyframes chalkIn{0%{opacity:0;transform:translateY(4px)}100%{opacity:0.6;transform:translateY(0)}}
@@ -982,8 +986,8 @@ nodes: {
 },
 
 'N05_convenience': {
-  text: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短，却足够了——像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。',
-  textLight: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短，却足够了——像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。\n\n这里的时间流速也慢了下来，没人催你，你可以多待一会儿。',
+  text: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短。那一眼像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。',
+  textLight: '推门时没有铃响。屋里灯很亮，却和外面不同——不刺眼，像已经亮了太久，久到连灯管自己都忘了熄灭的意思。柜台后坐着店主。或者说，他只是待在那儿。他看了你一眼，极短。那一眼像翻开一页你还没写完的草稿，看清了，又合上放回原处。墙上贴着一张店规。门口有一台扭蛋机，插着电，没有插座。\n\n这里的时间流速也慢了下来，没人催你，你可以多待一会儿。',
   fx: 'warmIn',
   choices: [
     { id: 'c5b_rules', text: '读店规', next: 'N06_shop_rules', effects: [] },
@@ -1058,7 +1062,7 @@ nodes: {
 },
 
 'N06_shop_shelf': {
-  text: '顶层只放着一样东西。隔着距离看不太清——颜色是对的，形状也是完整的，但你说不上来它到底是什么。\n\n店主没抬头。\n\n"看过了？"\n\n"那就够了。"',
+  text: '顶层只放着一样东西。隔着距离看不太清——颜色是对的，形状也是完整的，但你说不上来它到底是什么。\n\n店主没抬头。\n\n"看过了？"\n\n"那就记着它在那儿。"',
   choices: [
     { id: 'c6s_gacha', text: '去看扭蛋机', next: 'N06_gacha', effects: [] },
     { id: 'c6s_leave', text: '离店', next: 'N06_shop_leave', effects: [] }
@@ -1193,20 +1197,14 @@ nodes: {
 },
 
 'N08_lamp_talk': {
-  text: function() {
-    let t = '"门没锁。"\n（停了一拍。尾巴从窗台垂下来，晃了一下。）\n"……也没人邀请你。你自己推的。赖不了别人。"';
-    if (State.attr('caution') >= 2 || State.has('lamp_hesitated')) {
-      t += '\n\n"你刚才在走廊上停了很久。"\n（他没有看你。他在看灯。）\n"……我没催你。灯还亮着就是没催你。"';
-    }
-    return t;
-  },
+  text: '（他转过来一点。只转了一点。）\n"你开口了。那我说一句。"\n\n"这楼里的东西不抢别的，抢名字。你的还在你身上，我看得出来——它还没松。"\n（尾巴绕到膝前，尖端压着。）\n"别念给不该听的人，也别答应任何要你重写它的人。"\n\n"名字保管好，你就没事。"\n（停了一拍。尾巴松开了。）\n"……我说的是规矩。"',
   choices: [
     { id: 'c8lt_leave', text: '准备离开灯房', next: 'N09_lamp_leave', effects: [] }
   ]
 },
 
 'N08_lamp_silent': {
-  text: '"不说话也行。这里没有查寝。"\n（尾巴尖碰了一下窗框，像在计时。）\n"灯不会因为你不说话就灭。放心。"',
+  text: '（他没看你，把尾巴收回去一点，腾出窗台的另一半。）\n"坐。这里不记账。"\n\n"你不说话，那我说。这楼里的东西不抢别的，抢名字。你的还在，还没松。"\n（尾巴尖在窗框上敲了两下。）\n"别念给不该听的人，也别答应任何要你重写它的人。"\n\n"名字保管好，你就没事。"\n（停了一拍。）\n"……想走了再走。"',
   choices: [
     { id: 'c8ls_leave', text: '准备离开灯房', next: 'N09_lamp_leave', effects: [] }
   ]
@@ -1278,7 +1276,7 @@ nodes: {
 },
 
 'N11_hallway_continue': {
-  text: '走廊在此汇合。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。你已经积攒了足够的经历，异能——如果有的话——已经沉在你身上，等着被用上。',
+  text: '走廊在此汇合。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。你一路攒下来的东西已经沉在你身上，异能——如果有的话——就等着被用上。',
   choices: [
     { id: 'c11_go', text: '继续前进', next: 'N_MID_SUMMARY', effects: [] }
   ]
@@ -1408,7 +1406,7 @@ nodes: {
 },
 
 'N14_generic_class': {
-  text: '你的异能弱了一截，但足够你走到这里。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。',
+  text: '你的异能弱了一截，但还撑得住你走到这里。前方的空气变了——更冷，更安静，像是整栋建筑在屏住呼吸。',
   choices: [ { id: 'c14g_go', text: '继续前进', next: 'N15_climax_setup', effects: [] } ]
 },
 
@@ -2030,11 +2028,18 @@ const Director = {
     const container = $('#chalk-marks');
     const mark = el('div', 'chalk-mark', text);
     container.appendChild(mark);
+    // 粉笔字现在坐在对话框的下沿里，所以要按它实际占的行数把正文顶上去一点。
+    // 长的粉笔字会折成两行，写死一个高度会有一种情况被压住，故用 offsetHeight 实测。
+    const dialog = $('#dialog');
+    dialog.style.paddingBottom = `calc(var(--safe-bottom) + 16px + ${mark.offsetHeight + 8}px)`;
     if (nodeId) this._revealChalkChoices(nodeId);
     setTimeout(() => {
       mark.style.transition = 'opacity 1.5s ease';
       mark.style.opacity = '0';
-      setTimeout(() => mark.remove(), 1600);
+      setTimeout(() => {
+        mark.remove();
+        if (!container.querySelector('.chalk-mark')) dialog.style.paddingBottom = '';
+      }, 1600);
     }, 8000);
   },
 
@@ -2419,6 +2424,7 @@ const Director = {
     $('#choices').style.display = 'none';
     $('#top-caption').classList.remove('show');
     $('#chalk-marks').innerHTML = '';
+    $('#dialog').style.paddingBottom = '';
     $('#illust').classList.remove('show');
     const area = $('#result-page');
     area.innerHTML = '';
@@ -2498,7 +2504,7 @@ const Director = {
       html += '<p>站牌亮了，车门却没有开。广播的声音一如既往地平稳：<br>「未检得随身异能，本站不停。请留在座位上，雾里还有下一班。」</p>';
     }
 
-    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
 
     html += '<div class="signoff">Opus 5</div>';
 
@@ -2513,6 +2519,7 @@ const Director = {
     $('#choices').style.display = 'none';
     $('#top-caption').classList.remove('show');
     $('#chalk-marks').innerHTML = '';
+    $('#dialog').style.paddingBottom = '';
     $('#illust').classList.remove('show');
     const area = $('#result-page');
     area.innerHTML = '';
@@ -2539,7 +2546,7 @@ const Director = {
     html += '<h2>配歌推荐</h2>';
     html += '<p>' + (STORY.songSlots.Resident || STORY.songSlots._default) + '</p>';
 
-    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
     html += '<div class="signoff">Opus 5</div>';
     html += '</div>';
 
