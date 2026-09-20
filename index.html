@@ -497,14 +497,6 @@ div.station-btn{opacity:0.45;color:var(--text-dim)}
 .ticket-svg{width:100%;max-width:360px;height:auto}
 .ticket-svg text{font-family:var(--font-main)}
 /* a quiet closing signature at the very bottom of the result page - not a heading, not a button */
-.signoff{
-  margin-top:3em;
-  padding-top:1.2em;
-  text-align:center;
-  font-size:13px;
-  letter-spacing:0.2em;
-  color:rgba(184,184,176,0.58);
-}
 </style>
 </head>
 <body>
@@ -2506,8 +2498,6 @@ const Director = {
 
     html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br>《规则怪谈》系列 · 快穿世界第一部 · 下一站——【检修中】</div>';
 
-    html += '<div class="signoff">Opus 5</div>';
-
     html += '</div>';
 
     area.innerHTML = html;
@@ -2546,9 +2536,7 @@ const Director = {
     html += '<h2>配歌推荐</h2>';
     html += '<p>' + (STORY.songSlots.Resident || STORY.songSlots._default) + '</p>';
 
-    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';
-    html += '<div class="signoff">Opus 5</div>';
-    html += '</div>';
+    html += '<div class="footer">inffo · Claude Fable 5 · Claude Opus 5 · Claude Opus 4.6 · Claude Sonnet 4.6 · Gemini 3.5 Flash<br><br><span style="font-size:12px;color:var(--text-dim)">站台还在原处。</span></div>';    html += '</div>';
 
     area.innerHTML = html;
     area.classList.add('show');
